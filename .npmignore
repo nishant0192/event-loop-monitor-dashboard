@@ -1,0 +1,52 @@
+# Test files
+test/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+
+# Examples (users can view on GitHub)
+examples/
+
+# Development files
+.eslintrc.js
+.eslintrc.json
+.eslintignore
+jest.config.js
+.prettierrc
+.editorconfig
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+circle.yml
+appveyor.yml
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.*
+
+# Documentation source (keep README.md)
+docs/
+
+# Misc
+.DS_Store
+*.swp
+*.swo
+*~
+tmp/
+temp/
