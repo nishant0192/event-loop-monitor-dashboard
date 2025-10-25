@@ -7,6 +7,9 @@ const MetricsCollector = require("./MetricsCollector");
  * Monitors:
  * - Event Loop Lag: Delay in processing events (using monitorEventLoopDelay)
  * - Event Loop Utilization: Percentage of time actively processing (using ELU)
+ * - Memory Usage: Heap, RSS, external memory
+ * - CPU Usage: User, system, and total CPU time
+ * - Active Handles: Timers, sockets, file handles, etc.
  *
  * @class
  */
@@ -36,6 +39,9 @@ class EventLoopMonitor {
     this.lastELU = null;
     this.eluStartTime = null;
 
+    // CPU tracking
+    this.lastCPU = null;
+
     // Monitoring state
     this.isMonitoring = false;
     this.sampleTimer = null;
@@ -63,6 +69,9 @@ class EventLoopMonitor {
     // Initialize ELU tracking
     this.lastELU = performance.eventLoopUtilization();
     this.eluStartTime = Date.now();
+
+    // Initialize CPU tracking
+    this.lastCPU = process.cpuUsage();
 
     // Start sampling
     this.isMonitoring = true;
@@ -94,6 +103,7 @@ class EventLoopMonitor {
 
     this.lastELU = null;
     this.eluStartTime = null;
+    this.lastCPU = null;
   }
 
   /**
@@ -148,11 +158,52 @@ class EventLoopMonitor {
     // Update last ELU for next diff calculation
     this.lastELU = currentELU;
 
+    // Get memory metrics
+    const memoryUsage = process.memoryUsage();
+    const memoryMetrics = {
+      heapUsed: memoryUsage.heapUsed,
+      heapTotal: memoryUsage.heapTotal,
+      external: memoryUsage.external,
+      rss: memoryUsage.rss,
+      arrayBuffers: memoryUsage.arrayBuffers || 0,
+      heapUsedMB: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2),
+      heapTotalMB: (memoryUsage.heapTotal / 1024 / 1024).toFixed(2),
+      rssMB: (memoryUsage.rss / 1024 / 1024).toFixed(2),
+      externalMB: (memoryUsage.external / 1024 / 1024).toFixed(2),
+    };
+
+    // Get CPU metrics
+    const cpuUsage = process.cpuUsage(this.lastCPU);
+    this.lastCPU = process.cpuUsage();
+
+    const cpuMetrics = {
+      user: cpuUsage.user / 1000, // Convert microseconds to milliseconds
+      system: cpuUsage.system / 1000,
+      total: (cpuUsage.user + cpuUsage.system) / 1000,
+    };
+
+    // Get active handles and requests
+    const activeHandles = process._getActiveHandles
+      ? process._getActiveHandles().length
+      : 0;
+    const activeRequests = process._getActiveRequests
+      ? process._getActiveRequests().length
+      : 0;
+
+    const handlesMetrics = {
+      active: activeHandles,
+      requests: activeRequests,
+      total: activeHandles + activeRequests,
+    };
+
     // Collect the sample
     const sample = {
       timestamp: now,
       lag: lagMetrics,
       elu: eluMetrics,
+      memory: memoryMetrics,
+      cpu: cpuMetrics,
+      handles: handlesMetrics,
       requests: {
         count: this.requestCount,
         totalTime: this.totalRequestTime,
@@ -222,6 +273,8 @@ class EventLoopMonitor {
       lagCritical: 100,
       eluWarning: 0.7, // 70%
       eluCritical: 0.9, // 90%
+      memoryWarning: 0.8, // 80% of heap
+      memoryCritical: 0.9, // 90% of heap
     };
 
     const t = { ...defaults, ...thresholds };
@@ -265,6 +318,23 @@ class EventLoopMonitor {
       score -= 20;
       if (status === "healthy") status = "degraded";
       issues.push(`High utilization: ${(eluUtilization * 100).toFixed(1)}%`);
+    }
+
+    // Memory assessment
+    if (current.memory) {
+      const heapUsed = parseFloat(current.memory.heapUsedMB);
+      const heapTotal = parseFloat(current.memory.heapTotalMB);
+      const memoryRatio = heapUsed / heapTotal;
+
+      if (memoryRatio >= t.memoryCritical) {
+        score -= 30;
+        status = "critical";
+        issues.push(`Critical memory: ${(memoryRatio * 100).toFixed(1)}%`);
+      } else if (memoryRatio >= t.memoryWarning) {
+        score -= 15;
+        if (status === "healthy") status = "degraded";
+        issues.push(`High memory: ${(memoryRatio * 100).toFixed(1)}%`);
+      }
     }
 
     // Check for extreme lag spikes (p99)

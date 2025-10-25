@@ -1,701 +1,1273 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Event Loop Monitor Dashboard</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Loop Monitor - Production Dashboard</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #333;
-        padding: 20px;
-        min-height: 100vh;
-      }
-
-      .container {
-        max-width: 1400px;
-        margin: 0 auto;
-      }
-
-      header {
-        text-align: center;
-        color: white;
-        margin-bottom: 30px;
-      }
-
-      header h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-      }
-
-      header p {
-        font-size: 1.1rem;
-        opacity: 0.9;
-      }
-
-      .health-banner {
-        background: white;
-        border-radius: 12px;
-        padding: 20px 30px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        transition: all 0.3s ease;
-      }
-
-      .health-banner.healthy {
-        border-left: 5px solid #10b981;
-      }
-
-      .health-banner.degraded {
-        border-left: 5px solid #f59e0b;
-      }
-
-      .health-banner.critical {
-        border-left: 5px solid #ef4444;
-        animation: pulse 2s infinite;
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        50% {
-          box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
-        }
-      }
-
-      .health-status {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-      }
-
-      .status-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-      }
-
-      .status-icon.healthy {
-        background: #10b981;
-      }
-      .status-icon.degraded {
-        background: #f59e0b;
-      }
-      .status-icon.critical {
-        background: #ef4444;
-      }
-
-      .status-text h2 {
-        font-size: 1.5rem;
-        margin-bottom: 5px;
-        text-transform: uppercase;
-      }
-
-      .status-text p {
-        color: #666;
-        font-size: 0.95rem;
-      }
-
-      .health-score {
-        text-align: right;
-      }
-
-      .health-score .score {
-        font-size: 3rem;
-        font-weight: 700;
-        line-height: 1;
-        margin-bottom: 5px;
-      }
-
-      .health-score .label {
-        color: #666;
-        font-size: 0.9rem;
-      }
-
-      .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-
-      .metric-card {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s ease;
-      }
-
-      .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
-      }
-
-      .metric-card h3 {
-        font-size: 0.9rem;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 10px;
-      }
-
-      .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #333;
-        margin-bottom: 5px;
-      }
-
-      .metric-unit {
-        font-size: 1rem;
-        color: #666;
-      }
-
-      .metric-details {
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid #e5e7eb;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        font-size: 0.85rem;
-      }
-
-      .detail-item {
-        display: flex;
-        justify-content: space-between;
-      }
-
-      .detail-label {
-        color: #666;
-      }
-
-      .detail-value {
-        font-weight: 600;
-        color: #333;
-      }
-
-      .charts-section {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-
-      .chart-card {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      .chart-card h3 {
-        font-size: 1.1rem;
-        color: #333;
-        margin-bottom: 15px;
-      }
-
-      .chart-container {
-        position: relative;
-        height: 200px;
-      }
-
-      canvas {
-        width: 100%;
-        height: 100%;
-      }
-
-      .error-message {
-        background: #fee;
-        color: #c33;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        text-align: center;
-      }
-
-      .loading {
-        text-align: center;
-        padding: 40px;
-        color: white;
-        font-size: 1.2rem;
-      }
-
-      .timestamp {
-        text-align: center;
-        color: white;
-        opacity: 0.8;
-        font-size: 0.9rem;
-        margin-top: 20px;
-      }
-
-      footer {
-        text-align: center;
-        color: white;
-        opacity: 0.7;
-        margin-top: 30px;
-        font-size: 0.9rem;
-      }
-
-      @media (max-width: 768px) {
-        header h1 {
-          font-size: 1.8rem;
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --border: #e5e7eb;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
         }
 
+        [data-theme="dark"] {
+            --light: #111827;
+            --dark: #f9fafb;
+            --border: #374151;
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header-left h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-left p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .time-range-selector {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Health Banner */
         .health-banner {
-          flex-direction: column;
-          text-align: center;
-          gap: 15px;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--success);
+            transition: all 0.3s ease;
         }
 
-        .health-score {
-          text-align: center;
+        .health-banner.degraded { border-left-color: var(--warning); }
+        .health-banner.critical { 
+            border-left-color: var(--danger);
+            animation: shake 0.5s ease-in-out;
         }
 
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .health-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            background: var(--light);
+        }
+
+        .health-details h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .health-details p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .health-score-display {
+            text-align: right;
+        }
+
+        .health-score-value {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .health-score-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            background: var(--light);
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Cards */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-trend {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .trend-up {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .trend-down {
+            background: #d1fae5;
+            color: var(--success);
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+
+        .card-unit {
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .card-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Charts Section */
         .charts-section {
-          grid-template-columns: 1fr;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
         }
-      }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+            margin-top: 12px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Insights Section */
+        .insights-section {
+            margin-bottom: 24px;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .insight-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--primary);
+        }
+
+        .insight-card.warning { border-left-color: var(--warning); }
+        .insight-card.critical { border-left-color: var(--danger); }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .insight-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .insight-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .insight-description {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .insight-time {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* Table */
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--light);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Loading & Error States */
+        .loading, .error {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .error-message {
+            font-size: 16px;
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .health-grid { grid-template-columns: 1fr; text-align: center; }
+            .health-score-display { text-align: center; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .charts-section { grid-template-columns: 1fr; }
+            .chart-container { height: 200px; }
+        }
+
+        /* Hide inactive tabs */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    Event Loop Monitor
+                </h1>
+                <p>Real-time Node.js Performance Analytics</p>
+            </div>
+            <div class="header-controls">
+                <select class="time-range-selector" id="timeRange">
+                    <option value="60">Last 1 minute</option>
+                    <option value="300" selected>Last 5 minutes</option>
+                    <option value="900">Last 15 minutes</option>
+                    <option value="1800">Last 30 minutes</option>
+                    <option value="3600">Last 1 hour</option>
+                </select>
+                <div class="refresh-indicator">
+                    <div class="pulse"></div>
+                    <span id="lastUpdate">Live</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
     <div class="container">
-      <header>
-        <h1>⚡ Event Loop Monitor</h1>
-        <p>Real-time Node.js event loop health monitoring</p>
-      </header>
-
-      <div id="error" class="error-message" style="display: none"></div>
-      <div id="loading" class="loading">Loading metrics...</div>
-
-      <div id="content" style="display: none">
-        <!-- Health Banner -->
-        <div id="health-banner" class="health-banner">
-          <div class="health-status">
-            <div id="status-icon" class="status-icon">✓</div>
-            <div class="status-text">
-              <h2 id="status-text">HEALTHY</h2>
-              <p id="status-message">Event loop is operating normally</p>
-            </div>
-          </div>
-          <div class="health-score">
-            <div id="health-score" class="score">100</div>
-            <div class="label">Health Score</div>
-          </div>
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading metrics...</p>
         </div>
 
-        <!-- Metrics Grid -->
-        <div class="metrics-grid">
-          <!-- Event Loop Lag -->
-          <div class="metric-card">
-            <h3>Event Loop Lag</h3>
-            <div>
-              <span id="lag-mean" class="metric-value">0.0</span>
-              <span class="metric-unit">ms</span>
-            </div>
-            <div class="metric-details">
-              <div class="detail-item">
-                <span class="detail-label">P50:</span>
-                <span id="lag-p50" class="detail-value">0.0 ms</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">P95:</span>
-                <span id="lag-p95" class="detail-value">0.0 ms</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">P99:</span>
-                <span id="lag-p99" class="detail-value">0.0 ms</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Max:</span>
-                <span id="lag-max" class="detail-value">0.0 ms</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Event Loop Utilization -->
-          <div class="metric-card">
-            <h3>Event Loop Utilization</h3>
-            <div>
-              <span id="elu-utilization" class="metric-value">0.0</span>
-              <span class="metric-unit">%</span>
-            </div>
-            <div class="metric-details">
-              <div class="detail-item">
-                <span class="detail-label">Active:</span>
-                <span id="elu-active" class="detail-value">0.0 ms</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Idle:</span>
-                <span id="elu-idle" class="detail-value">0.0 ms</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Request Metrics -->
-          <div class="metric-card">
-            <h3>Request Metrics</h3>
-            <div>
-              <span id="req-count" class="metric-value">0</span>
-              <span class="metric-unit">requests</span>
-            </div>
-            <div class="metric-details">
-              <div class="detail-item">
-                <span class="detail-label">Avg Time:</span>
-                <span id="req-avg" class="detail-value">0.0 ms</span>
-              </div>
-            </div>
-          </div>
+        <!-- Error State -->
+        <div id="error" class="error" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <p class="error-message" id="errorMessage"></p>
         </div>
 
-        <!-- Charts -->
-        <div class="charts-section">
-          <div class="chart-card">
-            <h3>Event Loop Lag (last 60s)</h3>
-            <div class="chart-container">
-              <canvas id="lag-chart"></canvas>
+        <!-- Main Content -->
+        <div id="content" style="display: none;">
+            <!-- Health Banner -->
+            <div id="healthBanner" class="health-banner">
+                <div class="health-grid">
+                    <div class="health-icon" id="healthIcon">✓</div>
+                    <div class="health-details">
+                        <h2 id="healthStatus">HEALTHY</h2>
+                        <p id="healthMessage">Event loop is operating within normal parameters</p>
+                    </div>
+                    <div class="health-score-display">
+                        <div class="health-score-value" id="healthScore">100</div>
+                        <div class="health-score-label">Health Score</div>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div class="chart-card">
-            <h3>Event Loop Utilization (last 60s)</h3>
-            <div class="chart-container">
-              <canvas id="elu-chart"></canvas>
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="overview">Overview</button>
+                <button class="tab" data-tab="performance">Performance</button>
+                <button class="tab" data-tab="memory">Memory</button>
+                <button class="tab" data-tab="insights">Insights</button>
             </div>
-          </div>
+
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-content active">
+                <!-- Key Metrics Cards -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Event Loop Lag</div>
+                            <div class="card-trend trend-down" id="lagTrend">↓ 12%</div>
+                        </div>
+                        <div>
+                            <span class="card-value" id="lagMean">0.0</span>
+                            <span class="card-unit">ms</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">P50</span>
+                                <span class="detail-value" id="lagP50">0.0 ms</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">P95</span>
+                                <span class="detail-value" id="lagP95">0.0 ms</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">P99</span>
+                                <span class="detail-value" id="lagP99">0.0 ms</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Max</span>
+                                <span class="detail-value" id="lagMax">0.0 ms</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">CPU Utilization</div>
+                            <div class="card-trend trend-up" id="eluTrend">↑ 5%</div>
+                        </div>
+                        <div>
+                            <span class="card-value" id="eluUtilization">0.0</span>
+                            <span class="card-unit">%</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Active</span>
+                                <span class="detail-value" id="eluActive">0.0 ms</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Idle</span>
+                                <span class="detail-value" id="eluIdle">0.0 ms</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Memory Usage</div>
+                            <div class="card-trend trend-up" id="memTrend">↑ 2%</div>
+                        </div>
+                        <div>
+                            <span class="card-value" id="memHeapUsed">0</span>
+                            <span class="card-unit">MB</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Heap Total</span>
+                                <span class="detail-value" id="memHeapTotal">0 MB</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">RSS</span>
+                                <span class="detail-value" id="memRSS">0 MB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Requests/sec</div>
+                            <div class="card-trend trend-down" id="reqTrend">→ 0%</div>
+                        </div>
+                        <div>
+                            <span class="card-value" id="reqRate">0</span>
+                            <span class="card-unit">req/s</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Avg Response</span>
+                                <span class="detail-value" id="reqAvg">0.0 ms</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Active Handles</span>
+                                <span class="detail-value" id="handlesActive">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-section">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Event Loop Lag Trend</div>
+                            <div class="chart-legend">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #3b82f6;"></div>
+                                    <span>Mean</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #f59e0b;"></div>
+                                    <span>P95</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #ef4444;"></div>
+                                    <span>P99</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="lagChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">CPU Utilization</div>
+                            <div class="chart-legend">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #10b981;"></div>
+                                    <span>Utilization</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="eluChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Tab -->
+            <div id="performance-tab" class="tab-content">
+                <div class="table-card">
+                    <h3 style="margin-bottom: 16px;">Performance Breakdown</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Current</th>
+                                <th>Average</th>
+                                <th>Peak</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="perfTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 40px;">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Memory Tab -->
+            <div id="memory-tab" class="tab-content">
+                <div class="charts-section">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Heap Memory Usage</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="memoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Memory Distribution</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="memoryDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Tab -->
+            <div id="insights-tab" class="tab-content">
+                <div class="insights-section">
+                    <h2 style="margin-bottom: 16px; font-size: 20px;">Actionable Insights</h2>
+                    <div class="insights-grid" id="insightsContainer">
+                        <div class="insight-card">
+                            <div class="insight-header">
+                                <div class="insight-icon" style="background: #dbeafe; color: #2563eb;">💡</div>
+                                <div class="insight-title">No issues detected</div>
+                            </div>
+                            <p class="insight-description">Your event loop is performing optimally. All metrics are within healthy ranges.</p>
+                            <div class="insight-time">Monitoring active</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="timestamp">Last updated: <span id="timestamp">-</span></div>
-      </div>
-
-      <footer>
-        <p>Event Loop Monitor Dashboard v1.0</p>
-      </footer>
     </div>
 
+    <footer>
+        <p>Event Loop Monitor Dashboard v2.0 | Updated every second</p>
+    </footer>
+
     <script>
-      // Calculate the correct base path for API calls
-      const currentPath = window.location.pathname;
+        // Configuration
+        const CONFIG = {
+            refreshInterval: 1000,
+            maxDataPoints: 300,
+            basePath: window.location.pathname.replace(/\/$/, '') + '/'
+        };
 
-      // Remove trailing slash if present, then add it back
-      const basePath = currentPath.replace(/\/$/, "") + "/";
+        // State
+        let state = {
+            currentTab: 'overview',
+            timeRange: 300,
+            history: {
+                lag: [],
+                elu: [],
+                memory: [],
+                requests: []
+            },
+            previousValues: {},
+            charts: {}
+        };
 
-      // Configuration
-      const REFRESH_INTERVAL = 1000; // 1 second
-      const MAX_DATA_POINTS = 60;
-
-      // State
-      let lagHistory = [];
-      let eluHistory = [];
-
-      // DOM Elements
-      const elements = {
-        error: document.getElementById("error"),
-        loading: document.getElementById("loading"),
-        content: document.getElementById("content"),
-        healthBanner: document.getElementById("health-banner"),
-        statusIcon: document.getElementById("status-icon"),
-        statusText: document.getElementById("status-text"),
-        statusMessage: document.getElementById("status-message"),
-        healthScore: document.getElementById("health-score"),
-        timestamp: document.getElementById("timestamp"),
-      };
-
-      // Initialize
-      fetchDashboardData();
-      setInterval(fetchDashboardData, REFRESH_INTERVAL);
-
-      // Fetch dashboard data
-      async function fetchDashboardData() {
-        try {
-          const response = await fetch(`${basePath}api/dashboard`);
-          const result = await response.json();
-
-          if (result.status === "ok") {
-            elements.loading.style.display = "none";
-            elements.content.style.display = "block";
-            elements.error.style.display = "none";
-
-            updateDashboard(result.data);
-          } else {
-            showError(result.message || "Failed to fetch metrics");
-          }
-        } catch (error) {
-          showError("Connection error: " + error.message);
-        }
-      }
-
-      // Update dashboard with new data
-      function updateDashboard(data) {
-        // Update health banner
-        updateHealthBanner(data.health);
-
-        // Update metrics
-        updateMetrics(data.current);
-
-        // Update charts
-        updateCharts(data.timeSeries);
-
-        // Update timestamp
-        elements.timestamp.textContent = new Date().toLocaleTimeString();
-      }
-
-      // Update health banner
-      function updateHealthBanner(health) {
-        const status = health.status;
-        const score = health.score;
-        const message = health.message;
-
-        // Update banner style
-        elements.healthBanner.className = `health-banner ${status}`;
-
-        // Update icon
-        elements.statusIcon.className = `status-icon ${status}`;
-        elements.statusIcon.textContent =
-          status === "healthy" ? "✓" : status === "degraded" ? "⚠" : "✗";
-
-        // Update text
-        elements.statusText.textContent = status.toUpperCase();
-        elements.statusMessage.textContent = message;
-
-        // Update score
-        elements.healthScore.textContent = score;
-      }
-
-      // Update metrics
-      function updateMetrics(current) {
-        // Lag metrics
-        document.getElementById("lag-mean").textContent =
-          current.lag.mean.toFixed(2);
-        document.getElementById("lag-p50").textContent =
-          current.lag.p50.toFixed(2) + " ms";
-        document.getElementById("lag-p95").textContent =
-          current.lag.p95.toFixed(2) + " ms";
-        document.getElementById("lag-p99").textContent =
-          current.lag.p99.toFixed(2) + " ms";
-        document.getElementById("lag-max").textContent =
-          current.lag.max.toFixed(2) + " ms";
-
-        // ELU metrics
-        document.getElementById("elu-utilization").textContent =
-          current.elu.utilization.toFixed(1);
-        document.getElementById("elu-active").textContent =
-          current.elu.active.toFixed(2) + " ms";
-        document.getElementById("elu-idle").textContent =
-          current.elu.idle.toFixed(2) + " ms";
-
-        // Request metrics
-        document.getElementById("req-count").textContent =
-          current.requests.count;
-        document.getElementById("req-avg").textContent =
-          current.requests.avgTime.toFixed(2) + " ms";
-      }
-
-      // Update charts
-      function updateCharts(timeSeries) {
-        lagHistory = timeSeries.lag.slice(-MAX_DATA_POINTS);
-        eluHistory = timeSeries.elu.slice(-MAX_DATA_POINTS);
-
-        drawLagChart();
-        drawEluChart();
-      }
-
-      // Draw lag chart
-      function drawLagChart() {
-        const canvas = document.getElementById("lag-chart");
-        const ctx = canvas.getContext("2d");
-
-        // Set canvas size
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = 30;
-
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-
-        if (lagHistory.length === 0) return;
-
-        // Find min/max for scaling
-        const meanValues = lagHistory.map((d) => d.mean);
-        const p95Values = lagHistory.map((d) => d.p95);
-        const allValues = [...meanValues, ...p95Values];
-        const minY = 0;
-        const maxY = Math.max(...allValues) * 1.2 || 100;
-
-        // Draw grid
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-          const y = padding + ((height - 2 * padding) * i) / 4;
-          ctx.beginPath();
-          ctx.moveTo(padding, y);
-          ctx.lineTo(width - padding, y);
-          ctx.stroke();
-        }
-
-        // Draw P95 line
-        drawLine(
-          ctx,
-          lagHistory,
-          "p95",
-          "#f59e0b",
-          minY,
-          maxY,
-          width,
-          height,
-          padding
-        );
-
-        // Draw mean line
-        drawLine(
-          ctx,
-          lagHistory,
-          "mean",
-          "#3b82f6",
-          minY,
-          maxY,
-          width,
-          height,
-          padding
-        );
-
-        // Draw legend
-        drawLegend(
-          ctx,
-          [
-            { label: "Mean", color: "#3b82f6" },
-            { label: "P95", color: "#f59e0b" },
-          ],
-          width - 100,
-          10
-        );
-      }
-
-      // Draw ELU chart
-      function drawEluChart() {
-        const canvas = document.getElementById("elu-chart");
-        const ctx = canvas.getContext("2d");
-
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = 30;
-
-        ctx.clearRect(0, 0, width, height);
-
-        if (eluHistory.length === 0) return;
-
-        const minY = 0;
-        const maxY = 100;
-
-        // Draw grid
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-          const y = padding + ((height - 2 * padding) * i) / 4;
-          ctx.beginPath();
-          ctx.moveTo(padding, y);
-          ctx.lineTo(width - padding, y);
-          ctx.stroke();
-        }
-
-        // Draw utilization line
-        drawLine(
-          ctx,
-          eluHistory,
-          "utilization",
-          "#10b981",
-          minY,
-          maxY,
-          width,
-          height,
-          padding
-        );
-      }
-
-      // Helper: Draw line on chart
-      function drawLine(
-        ctx,
-        data,
-        key,
-        color,
-        minY,
-        maxY,
-        width,
-        height,
-        padding
-      ) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        const xStep = (width - 2 * padding) / (data.length - 1 || 1);
-
-        data.forEach((point, i) => {
-          const x = padding + i * xStep;
-          const value = point[key];
-          const y =
-            height -
-            padding -
-            ((value - minY) / (maxY - minY)) * (height - 2 * padding);
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            startDataFetching();
         });
 
-        ctx.stroke();
-      }
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
 
-      // Helper: Draw legend
-      function drawLegend(ctx, items, x, y) {
-        ctx.font = "12px sans-serif";
-        items.forEach((item, i) => {
-          const offsetY = y + i * 20;
+            // Time range selector
+            document.getElementById('timeRange').addEventListener('change', (e) => {
+                state.timeRange = parseInt(e.target.value);
+                fetchDashboardData();
+            });
+        }
 
-          // Color box
-          ctx.fillStyle = item.color;
-          ctx.fillRect(x, offsetY, 12, 12);
+        function switchTab(tabName) {
+            state.currentTab = tabName;
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
 
-          // Label
-          ctx.fillStyle = "#333";
-          ctx.fillText(item.label, x + 18, offsetY + 10);
-        });
-      }
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch(`${CONFIG.basePath}api/dashboard`);
+                const result = await response.json();
 
-      // Show error message
-      function showError(message) {
-        elements.error.textContent = message;
-        elements.error.style.display = "block";
-        elements.loading.style.display = "none";
-      }
+                if (result.status === 'ok') {
+                    hideError();
+                    showContent();
+                    updateDashboard(result.data);
+                } else {
+                    showError(result.message || 'Failed to fetch metrics');
+                }
+            } catch (error) {
+                showError('Connection error: ' + error.message);
+            }
+        }
+
+        function updateDashboard(data) {
+            updateHealthBanner(data.health);
+            updateMetricsCards(data.current);
+            updateHistory(data.timeSeries);
+            updateCharts();
+            updateInsights(data);
+            updateLastUpdate();
+        }
+
+        function updateHealthBanner(health) {
+            const banner = document.getElementById('healthBanner');
+            const icon = document.getElementById('healthIcon');
+            const status = document.getElementById('healthStatus');
+            const message = document.getElementById('healthMessage');
+            const score = document.getElementById('healthScore');
+
+            banner.className = `health-banner ${health.status}`;
+            icon.textContent = health.status === 'healthy' ? '✓' : health.status === 'degraded' ? '⚠' : '✗';
+            status.textContent = health.status.toUpperCase();
+            message.textContent = health.message;
+            score.textContent = health.score;
+        }
+
+        function updateMetricsCards(current) {
+            // Event Loop Lag
+            updateMetric('lagMean', current.lag.mean, 'ms', 2);
+            updateMetric('lagP50', current.lag.p50, 'ms', 2);
+            updateMetric('lagP95', current.lag.p95, 'ms', 2);
+            updateMetric('lagP99', current.lag.p99, 'ms', 2);
+            updateMetric('lagMax', current.lag.max, 'ms', 2);
+            updateTrend('lagTrend', current.lag.mean, 'lagMean');
+
+            // CPU Utilization
+            updateMetric('eluUtilization', current.elu.utilization, '%', 1);
+            updateMetric('eluActive', current.elu.active, 'ms', 2);
+            updateMetric('eluIdle', current.elu.idle, 'ms', 2);
+            updateTrend('eluTrend', current.elu.utilization, 'elu');
+
+            // Memory
+            updateMetric('memHeapUsed', current.memory.heapUsedMB, '', 0);
+            updateMetric('memHeapTotal', current.memory.heapTotalMB, 'MB', 0);
+            updateMetric('memRSS', current.memory.rssMB, 'MB', 0);
+            updateTrend('memTrend', parseFloat(current.memory.heapUsedMB), 'memory');
+
+            // Requests
+            const reqRate = current.requests.count * 10; // Approximate req/s
+            updateMetric('reqRate', reqRate, '', 0);
+            updateMetric('reqAvg', current.requests.avgTime, 'ms', 2);
+            updateMetric('handlesActive', current.handles.active, '', 0);
+            updateTrend('reqTrend', reqRate, 'requests');
+        }
+
+        function updateMetric(elementId, value, unit, decimals) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                const formattedValue = typeof value === 'number' ? value.toFixed(decimals) : value;
+                element.textContent = unit ? `${formattedValue} ${unit}` : formattedValue;
+            }
+        }
+
+        function updateTrend(elementId, currentValue, metricKey) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const previousValue = state.previousValues[metricKey];
+            if (previousValue === undefined) {
+                state.previousValues[metricKey] = currentValue;
+                element.textContent = '→ 0%';
+                element.className = 'card-trend';
+                return;
+            }
+
+            const change = ((currentValue - previousValue) / previousValue) * 100;
+            const absChange = Math.abs(change);
+            
+            if (absChange < 1) {
+                element.textContent = '→ 0%';
+                element.className = 'card-trend';
+            } else if (change > 0) {
+                element.textContent = `↑ ${absChange.toFixed(0)}%`;
+                element.className = 'card-trend trend-up';
+            } else {
+                element.textContent = `↓ ${absChange.toFixed(0)}%`;
+                element.className = 'card-trend trend-down';
+            }
+
+            state.previousValues[metricKey] = currentValue;
+        }
+
+        function updateHistory(timeSeries) {
+            state.history.lag = timeSeries.lag.slice(-CONFIG.maxDataPoints);
+            state.history.elu = timeSeries.elu.slice(-CONFIG.maxDataPoints);
+            state.history.memory = timeSeries.memory.slice(-CONFIG.maxDataPoints);
+            state.history.requests = timeSeries.requests.slice(-CONFIG.maxDataPoints);
+        }
+
+        function updateCharts() {
+            drawLagChart();
+            drawEluChart();
+            drawMemoryChart();
+        }
+
+        function drawLagChart() {
+            const canvas = document.getElementById('lagChart');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            const data = state.history.lag;
+            if (data.length === 0) return;
+
+            const padding = 40;
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Find max value for scaling
+            const allValues = data.flatMap(d => [d.mean, d.p95, d.p99]);
+            const maxY = Math.max(...allValues) * 1.2 || 100;
+
+            // Draw grid
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + ((height - 2 * padding) * i) / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+                
+                // Y-axis labels
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                const label = (maxY * (1 - i / 5)).toFixed(0);
+                ctx.fillText(label + 'ms', padding - 10, y + 4);
+            }
+
+            // Draw lines
+            drawLine(ctx, data, 'p99', '#ef4444', maxY, width, height, padding);
+            drawLine(ctx, data, 'p95', '#f59e0b', maxY, width, height, padding);
+            drawLine(ctx, data, 'mean', '#3b82f6', maxY, width, height, padding);
+        }
+
+        function drawEluChart() {
+            const canvas = document.getElementById('eluChart');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            const data = state.history.elu;
+            if (data.length === 0) return;
+
+            const padding = 40;
+            const width = canvas.width;
+            const height = canvas.height;
+            const maxY = 100;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw grid
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + ((height - 2 * padding) * i) / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+                
+                // Y-axis labels
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                const label = (maxY * (1 - i / 5)).toFixed(0);
+                ctx.fillText(label + '%', padding - 10, y + 4);
+            }
+
+            // Draw line
+            drawLine(ctx, data, 'utilization', '#10b981', maxY, width, height, padding);
+        }
+
+        function drawMemoryChart() {
+            const canvas = document.getElementById('memoryChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            const data = state.history.memory;
+            if (data.length === 0) return;
+
+            const padding = 40;
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const maxY = Math.max(...data.map(d => parseFloat(d.heapUsedMB))) * 1.2 || 100;
+
+            // Draw grid
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + ((height - 2 * padding) * i) / 5;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+                
+                // Y-axis labels
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                const label = (maxY * (1 - i / 5)).toFixed(0);
+                ctx.fillText(label + 'MB', padding - 10, y + 4);
+            }
+
+            // Draw line
+            ctx.strokeStyle = '#8b5cf6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const xStep = (width - 2 * padding) / (data.length - 1 || 1);
+            
+            data.forEach((point, i) => {
+                const x = padding + i * xStep;
+                const value = parseFloat(point.heapUsedMB);
+                const y = height - padding - ((value / maxY) * (height - 2 * padding));
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+        }
+
+        function drawLine(ctx, data, key, color, maxY, width, height, padding) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const xStep = (width - 2 * padding) / (data.length - 1 || 1);
+
+            data.forEach((point, i) => {
+                const x = padding + i * xStep;
+                const value = point[key];
+                const y = height - padding - ((value / maxY) * (height - 2 * padding));
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+        }
+
+        function updateInsights(data) {
+            const container = document.getElementById('insightsContainer');
+            const insights = generateInsights(data);
+            
+            if (insights.length === 0) {
+                container.innerHTML = `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon" style="background: #dbeafe; color: #2563eb;">✓</div>
+                            <div class="insight-title">All systems optimal</div>
+                        </div>
+                        <p class="insight-description">Your event loop is performing excellently. All metrics are within healthy ranges.</p>
+                        <div class="insight-time">Monitoring active</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = insights.map(insight => `
+                <div class="insight-card ${insight.level}">
+                    <div class="insight-header">
+                        <div class="insight-icon" style="background: ${insight.bgColor}; color: ${insight.color};">${insight.icon}</div>
+                        <div class="insight-title">${insight.title}</div>
+                    </div>
+                    <p class="insight-description">${insight.description}</p>
+                    <div class="insight-time">${insight.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function generateInsights(data) {
+            const insights = [];
+            const current = data.current;
+            const health = data.health;
+
+            // High lag detection
+            if (current.lag.mean > 50) {
+                insights.push({
+                    level: current.lag.mean > 100 ? 'critical' : 'warning',
+                    icon: '⚠️',
+                    title: 'High Event Loop Lag Detected',
+                    description: `Average lag is ${current.lag.mean.toFixed(2)}ms. Consider identifying and optimizing synchronous operations blocking the event loop.`,
+                    time: 'Just now',
+                    bgColor: current.lag.mean > 100 ? '#fee2e2' : '#fef3c7',
+                    color: current.lag.mean > 100 ? '#ef4444' : '#f59e0b'
+                });
+            }
+
+            // High utilization
+            if (current.elu.utilization > 70) {
+                insights.push({
+                    level: current.elu.utilization > 90 ? 'critical' : 'warning',
+                    icon: '🔥',
+                    title: 'High CPU Utilization',
+                    description: `Event loop utilization is at ${(current.elu.utilization).toFixed(1)}%. Consider scaling or optimizing CPU-intensive operations.`,
+                    time: 'Just now',
+                    bgColor: current.elu.utilization > 90 ? '#fee2e2' : '#fef3c7',
+                    color: current.elu.utilization > 90 ? '#ef4444' : '#f59e0b'
+                });
+            }
+
+            // Memory trending up
+            if (state.history.memory.length > 10) {
+                const recent = state.history.memory.slice(-10);
+                const first = parseFloat(recent[0].heapUsedMB);
+                const last = parseFloat(recent[recent.length - 1].heapUsedMB);
+                const increase = ((last - first) / first) * 100;
+
+                if (increase > 20) {
+                    insights.push({
+                        level: 'warning',
+                        icon: '📈',
+                        title: 'Memory Usage Trending Up',
+                        description: `Heap memory increased ${increase.toFixed(1)}% in the last minute. Monitor for potential memory leaks.`,
+                        time: 'Last 1 minute',
+                        bgColor: '#fef3c7',
+                        color: '#f59e0b'
+                    });
+                }
+            }
+
+            // Lag spikes
+            const lagHistory = state.history.lag.slice(-60);
+            if (lagHistory.length > 0) {
+                const maxLag = Math.max(...lagHistory.map(d => d.p99));
+                const avgLag = lagHistory.reduce((sum, d) => sum + d.mean, 0) / lagHistory.length;
+                
+                if (maxLag > avgLag * 5) {
+                    insights.push({
+                        level: 'warning',
+                        icon: '📊',
+                        title: 'Intermittent Lag Spikes Detected',
+                        description: `P99 lag (${maxLag.toFixed(2)}ms) is significantly higher than average (${avgLag.toFixed(2)}ms). Investigate blocking operations.`,
+                        time: 'Last 1 minute',
+                        bgColor: '#fef3c7',
+                        color: '#f59e0b'
+                    });
+                }
+            }
+
+            // Recommendations
+            if (health.status === 'healthy' && insights.length === 0) {
+                insights.push({
+                    level: '',
+                    icon: '💡',
+                    title: 'Optimization Tip',
+                    description: 'Consider implementing request pooling and caching strategies to further improve performance during peak loads.',
+                    time: 'Recommendation',
+                    bgColor: '#dbeafe',
+                    color: '#2563eb'
+                });
+            }
+
+            return insights;
+        }
+
+        function updateLastUpdate() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        function showContent() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function startDataFetching() {
+            fetchDashboardData();
+            setInterval(fetchDashboardData, CONFIG.refreshInterval);
+        }
     </script>
-  </body>
+</body>
 </html>
