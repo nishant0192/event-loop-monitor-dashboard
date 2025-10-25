@@ -262,7 +262,7 @@ class EventLoopMonitor {
   }
 
   /**
-   * Get health status based on current metrics
+   * Get health status based on current metrics with proportional scoring
    *
    * @param {Object} [thresholds] - Custom thresholds for health assessment
    * @returns {Object} Health status and score
@@ -284,69 +284,131 @@ class EventLoopMonitor {
       return {
         status: "unknown",
         score: 0,
+        issues: [],
         message: "Monitoring not started",
+        metrics: { lag: 0, elu: 0 },
       };
     }
 
     const lagMean = current.lag.mean;
     const eluUtilization = current.elu.utilization;
 
-    // Calculate health score (0-100)
+    // Calculate health score (0-100) with proportional penalties
     let score = 100;
     let status = "healthy";
     let issues = [];
 
-    // Lag assessment
-    if (lagMean >= t.lagCritical) {
-      score -= 40;
-      status = "critical";
-      issues.push(`Critical lag: ${lagMean.toFixed(2)}ms`);
-    } else if (lagMean >= t.lagWarning) {
-      score -= 20;
-      if (status === "healthy") status = "degraded";
-      issues.push(`High lag: ${lagMean.toFixed(2)}ms`);
+    // Proportional lag assessment (max penalty: 40 points)
+    if (lagMean > 0) {
+      if (lagMean >= t.lagCritical) {
+        // Critical: exponential penalty based on how far over critical threshold
+        const excessRatio = Math.min(
+          (lagMean - t.lagCritical) / t.lagCritical,
+          2
+        );
+        const penalty = 40 + excessRatio * 20; // 40-60 point penalty
+        score -= penalty;
+        status = "critical";
+        issues.push(`Critical lag: ${lagMean.toFixed(2)}ms`);
+      } else if (lagMean >= t.lagWarning) {
+        // Warning: linear penalty between warning and critical
+        const range = t.lagCritical - t.lagWarning;
+        const position = lagMean - t.lagWarning;
+        const ratio = Math.min(position / range, 1);
+        const penalty = 10 + ratio * 20; // 10-30 point penalty
+        score -= penalty;
+        if (status === "healthy") status = "degraded";
+        issues.push(`High lag: ${lagMean.toFixed(2)}ms`);
+      } else if (lagMean > 10) {
+        // Minor lag: small proportional penalty
+        const ratio = Math.min(lagMean / t.lagWarning, 1);
+        const penalty = ratio * 10; // 0-10 point penalty
+        score -= penalty;
+      }
     }
 
-    // ELU assessment
-    if (eluUtilization >= t.eluCritical) {
-      score -= 40;
-      status = "critical";
-      issues.push(
-        `Critical utilization: ${(eluUtilization * 100).toFixed(1)}%`
-      );
-    } else if (eluUtilization >= t.eluWarning) {
-      score -= 20;
-      if (status === "healthy") status = "degraded";
-      issues.push(`High utilization: ${(eluUtilization * 100).toFixed(1)}%`);
+    // Proportional ELU assessment (max penalty: 40 points)
+    if (eluUtilization > 0) {
+      if (eluUtilization >= t.eluCritical) {
+        // Critical: exponential penalty
+        const excessRatio = Math.min(
+          (eluUtilization - t.eluCritical) / (1 - t.eluCritical),
+          1
+        );
+        const penalty = 40 + excessRatio * 20; // 40-60 point penalty
+        score -= penalty;
+        status = "critical";
+        issues.push(
+          `Critical utilization: ${(eluUtilization * 100).toFixed(1)}%`
+        );
+      } else if (eluUtilization >= t.eluWarning) {
+        // Warning: linear penalty
+        const range = t.eluCritical - t.eluWarning;
+        const position = eluUtilization - t.eluWarning;
+        const ratio = Math.min(position / range, 1);
+        const penalty = 10 + ratio * 20; // 10-30 point penalty
+        score -= penalty;
+        if (status === "healthy") status = "degraded";
+        issues.push(`High utilization: ${(eluUtilization * 100).toFixed(1)}%`);
+      } else if (eluUtilization > 0.5) {
+        // Moderate load: small proportional penalty
+        const ratio = (eluUtilization - 0.5) / (t.eluWarning - 0.5);
+        const penalty = ratio * 10; // 0-10 point penalty
+        score -= penalty;
+      }
     }
 
-    // Memory assessment
+    // Proportional memory assessment (max penalty: 30 points)
     if (current.memory) {
       const heapUsed = parseFloat(current.memory.heapUsedMB);
       const heapTotal = parseFloat(current.memory.heapTotalMB);
       const memoryRatio = heapUsed / heapTotal;
 
       if (memoryRatio >= t.memoryCritical) {
-        score -= 30;
+        // Critical: exponential penalty
+        const excessRatio = Math.min(
+          (memoryRatio - t.memoryCritical) / (1 - t.memoryCritical),
+          1
+        );
+        const penalty = 30 + excessRatio * 15; // 30-45 point penalty
+        score -= penalty;
         status = "critical";
         issues.push(`Critical memory: ${(memoryRatio * 100).toFixed(1)}%`);
       } else if (memoryRatio >= t.memoryWarning) {
-        score -= 15;
+        // Warning: linear penalty
+        const range = t.memoryCritical - t.memoryWarning;
+        const position = memoryRatio - t.memoryWarning;
+        const ratio = position / range;
+        const penalty = 5 + ratio * 15; // 5-20 point penalty
+        score -= penalty;
         if (status === "healthy") status = "degraded";
         issues.push(`High memory: ${(memoryRatio * 100).toFixed(1)}%`);
+      } else if (memoryRatio > 0.6) {
+        // Moderate memory usage: small penalty
+        const ratio = (memoryRatio - 0.6) / (t.memoryWarning - 0.6);
+        const penalty = ratio * 5; // 0-5 point penalty
+        score -= penalty;
       }
     }
 
-    // Check for extreme lag spikes (p99)
-    if (current.lag.p99 >= t.lagCritical * 2) {
-      score -= 10;
-      if (status === "healthy") status = "degraded";
-      issues.push(`Severe lag spikes: p99=${current.lag.p99.toFixed(2)}ms`);
+    // Lag spike assessment (max penalty: 15 points)
+    if (current.lag.p99 > t.lagWarning) {
+      const spikeRatio = Math.min(current.lag.p99 / (t.lagCritical * 2), 1.5);
+      const penalty = spikeRatio * 10; // 0-15 point penalty
+      score -= penalty;
+
+      if (current.lag.p99 >= t.lagCritical * 2) {
+        if (status === "healthy") status = "degraded";
+        issues.push(`Severe lag spikes: p99=${current.lag.p99.toFixed(2)}ms`);
+      }
     }
+
+    // Round to 1 decimal place for precision
+    score = Math.round(Math.max(0, Math.min(100, score)) * 10) / 10;
 
     return {
       status,
-      score: Math.max(0, score),
+      score,
       issues,
       message: issues.length > 0 ? issues.join(", ") : "Event loop is healthy",
       metrics: {
