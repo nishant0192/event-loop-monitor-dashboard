@@ -1,15 +1,15 @@
 /**
  * Express Middleware for Event Loop Monitoring
- * 
+ *
  * Provides zero-config integration with Express applications:
  * - Automatic request tracking
  * - Dashboard route mounting
  * - Optional alerting
- * 
+ *
  * @module middleware/express
  */
 
-const EventLoopMonitor = require('../core/EventLoopMonitor');
+const EventLoopMonitor = require("../core/EventLoopMonitor");
 
 // Global monitor instance (shared across middleware calls)
 let globalMonitor = null;
@@ -24,7 +24,7 @@ function getOrCreateMonitor(options) {
     globalMonitor = new EventLoopMonitor({
       sampleInterval: options.sampleInterval,
       historySize: options.historySize,
-      resolution: options.resolution
+      resolution: options.resolution,
     });
     globalMonitor.start();
   }
@@ -41,22 +41,22 @@ function setupAlertManager(monitor, options) {
   }
 
   // Lazy load AlertManager
-  const AlertManager = require('../alerts/AlertManager');
-  
+  const AlertManager = require("../alerts/AlertManager");
+
   if (!globalAlertManager) {
     globalAlertManager = new AlertManager(monitor, {
       thresholds: options.thresholds,
-      onAlert: options.onAlert
+      onAlert: options.onAlert,
     });
     globalAlertManager.start();
   }
-  
+
   return globalAlertManager;
 }
 
 /**
  * Create Express middleware for event loop monitoring
- * 
+ *
  * @param {Object} [options] - Configuration options
  * @param {string} [options.path='/event-loop-stats'] - Dashboard route path
  * @param {number} [options.sampleInterval=100] - Sampling interval in ms
@@ -69,11 +69,11 @@ function setupAlertManager(monitor, options) {
  * @param {number} [options.thresholds.eluCritical=0.9] - Critical ELU threshold (0-1)
  * @param {Function} [options.onAlert] - Alert callback function
  * @returns {Function} Express middleware
- * 
+ *
  * @example
  * const express = require('express');
  * const { eventLoopMonitor } = require('event-loop-monitor-dashboard');
- * 
+ *
  * const app = express();
  * app.use(eventLoopMonitor({
  *   path: '/monitoring',
@@ -89,17 +89,17 @@ function setupAlertManager(monitor, options) {
 function createMiddleware(options = {}) {
   // Default options
   const config = {
-    path: options.path || '/event-loop-stats',
+    path: options.path || "/event-loop-stats",
     sampleInterval: options.sampleInterval || 100,
     historySize: options.historySize || 300,
     resolution: options.resolution || 10,
     thresholds: options.thresholds,
-    onAlert: options.onAlert
+    onAlert: options.onAlert,
   };
 
   // Normalize path (ensure it starts with /)
-  if (!config.path.startsWith('/')) {
-    config.path = '/' + config.path;
+  if (!config.path.startsWith("/")) {
+    config.path = "/" + config.path;
   }
 
   // Get or create monitor instance
@@ -112,7 +112,7 @@ function createMiddleware(options = {}) {
   let dashboardRouter = null;
   function getDashboardRouter() {
     if (!dashboardRouter) {
-      const createDashboardRoutes = require('../dashboard/routes');
+      const createDashboardRoutes = require("../dashboard/routes");
       dashboardRouter = createDashboardRoutes(monitor);
     }
     return dashboardRouter;
@@ -121,28 +121,34 @@ function createMiddleware(options = {}) {
   // Main middleware function
   return function eventLoopMiddleware(req, res, next) {
     // Check if this request is for the dashboard
-    if (req.path === config.path || req.path.startsWith(config.path + '/')) {
+
+    if (req.path === config.path) {
+      // Redirect to version with trailing slash for proper relative URL resolution
+      return res.redirect(301, config.path + "/");
+    }
+
+    if (req.path === config.path || req.path.startsWith(config.path + "/")) {
       // Mount dashboard routes
       const router = getDashboardRouter();
-      
+
       // Adjust path for sub-router
       const originalUrl = req.url;
       const originalPath = req.path;
-      
+
       // Strip the base path so the dashboard router sees relative paths
       if (req.url.startsWith(config.path)) {
-        req.url = req.url.slice(config.path.length) || '/';
+        req.url = req.url.slice(config.path.length) || "/";
       }
       if (req.path.startsWith(config.path)) {
-        req.path = req.path.slice(config.path.length) || '/';
+        req.path = req.path.slice(config.path.length) || "/";
       }
-      
+
       // Handle the request with dashboard router
       router(req, res, (err) => {
         // Restore original paths
         req.url = originalUrl;
         req.path = originalPath;
-        
+
         if (err) {
           next(err);
         } else {
@@ -150,23 +156,23 @@ function createMiddleware(options = {}) {
           next();
         }
       });
-      
+
       return;
     }
 
     // Track request timing for non-dashboard requests
     const startTime = Date.now();
-    
+
     // Capture the original res.end to measure request duration
     const originalEnd = res.end;
-    
-    res.end = function(...args) {
+
+    res.end = function (...args) {
       // Calculate request duration
       const duration = Date.now() - startTime;
-      
+
       // Track in monitor
       monitor.trackRequest(duration);
-      
+
       // Call original end
       originalEnd.apply(res, args);
     };
@@ -179,7 +185,7 @@ function createMiddleware(options = {}) {
 /**
  * Get the global monitor instance
  * Useful for accessing metrics outside of middleware
- * 
+ *
  * @returns {EventLoopMonitor|null} Global monitor instance or null if not initialized
  */
 function getGlobalMonitor() {
@@ -188,7 +194,7 @@ function getGlobalMonitor() {
 
 /**
  * Get the global alert manager instance
- * 
+ *
  * @returns {AlertManager|null} Global alert manager or null if not initialized
  */
 function getGlobalAlertManager() {
@@ -204,7 +210,7 @@ function cleanup() {
     globalAlertManager.stop();
     globalAlertManager = null;
   }
-  
+
   if (globalMonitor) {
     globalMonitor.stop();
     globalMonitor = null;
