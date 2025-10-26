@@ -1,15 +1,14 @@
 /**
- * Example: Basic Express App with Event Loop Monitoring
+ * Event Loop Monitor - Demo Application
  * 
- * This example demonstrates the simplest way to add event loop monitoring
- * to an Express application.
+ * Complete Express application demonstrating event loop monitoring capabilities.
  * 
  * Usage:
- *   node examples/express-app.js
+ *   node express-app.js
  * 
  * Then visit:
- *   - http://localhost:3000 - Test the app
- *   - http://localhost:3000/event-loop-stats - View the dashboard
+ *   - http://localhost:3000 - Home page
+ *   - http://localhost:3000/event-loop-stats - Dashboard
  *   - http://localhost:3000/api/test - Test endpoint
  */
 
@@ -20,27 +19,26 @@ const { eventLoopMonitor } = require('../src/index');
 const app = express();
 const PORT = 3000;
 
-// Add event loop monitoring with one line!
+// Add event loop monitoring
 app.use(eventLoopMonitor({
   path: '/event-loop-stats',
   sampleInterval: 100,
   historySize: 300,
   thresholds: {
-    lagWarning: 50,      // Warn if lag > 50ms
-    lagCritical: 100,    // Critical if lag > 100ms
-    eluWarning: 0.7,     // Warn if utilization > 70%
-    eluCritical: 0.9     // Critical if utilization > 90%
+    lagWarning: 50,
+    lagCritical: 100,
+    eluWarning: 0.7,
+    eluCritical: 0.9
   },
   onAlert: (alert) => {
-    // This callback is called when thresholds are breached
-    console.log('\n🚨 ALERT:', alert.message);
-    console.log('   Level:', alert.level);
-    console.log('   Metric:', alert.metric);
-    console.log('   Value:', alert.value.toFixed(2), alert.unit);
+    console.log('\nALERT:', alert.message);
+    console.log('Level:', alert.level);
+    console.log('Metric:', alert.metric);
+    console.log('Value:', alert.value.toFixed(2), alert.unit);
     if (alert.status === 'resolved') {
-      console.log('✅ Alert resolved\n');
+      console.log('Alert resolved\n');
     } else {
-      console.log('⚠️  Action needed!\n');
+      console.log('Action needed\n');
     }
   }
 }));
@@ -51,94 +49,297 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+// Home page route
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-      <title>Event Loop Monitor Demo</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Event Loop Monitor - Demo Application</title>
       <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
         body {
-          font-family: Arial, sans-serif;
-          max-width: 800px;
-          margin: 50px auto;
-          padding: 20px;
-          background: #f5f5f5;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          background: #ffffff;
+          min-height: 100vh;
+          padding: 0;
         }
-        h1 {
-          color: #333;
+
+        .header-banner {
+          background: #ffffff;
+          color: black;
+          padding: 60px 20px;
+          text-align: center;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
+        .header-banner h1 {
+          font-size: 2.5rem;
+          font-weight: 700;
+          margin-bottom: 10px;
+          letter-spacing: -0.5px;
+        }
+
+        .header-banner p {
+          font-size: 1.1rem;
+          opacity: 0.95;
+          font-weight: 300;
+        }
+
+        .container {
+          max-width: 1000px;
+          margin: 0 auto;
+          padding: 40px 20px;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 24px;
+          margin-bottom: 24px;
+        }
+
         .card {
           background: white;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 32px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          transition: transform 0.2s, box-shadow 0.2s;
         }
-        .link-button {
+
+        .card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-large {
+          grid-column: 1 / -1;
+        }
+
+        .card h2 {
+          font-size: 1.5rem;
+          color: #2d3748;
+          margin-bottom: 12px;
+          font-weight: 600;
+        }
+
+        .card p {
+          color: #718096;
+          line-height: 1.6;
+          margin-bottom: 20px;
+        }
+
+        .button {
           display: inline-block;
-          background: #667eea;
-          color: white;
           padding: 12px 24px;
           text-decoration: none;
-          border-radius: 5px;
-          margin: 10px 10px 10px 0;
-          transition: background 0.3s;
+          border-radius: 6px;
+          font-weight: 500;
+          transition: all 0.2s;
+          font-size: 0.95rem;
+          border: none;
+          cursor: pointer;
         }
-        .link-button:hover {
+
+        .button-primary {
+          background: #667eea;
+          color: white;
+          margin-right: 10px;
+          margin-bottom: 10px;
+        }
+
+        .button-primary:hover {
           background: #5568d3;
+          transform: scale(1.02);
         }
-        .test-button {
+
+        .button-success {
           background: #48bb78;
+          color: white;
+          margin-right: 10px;
+          margin-bottom: 10px;
         }
-        .test-button:hover {
+
+        .button-success:hover {
           background: #38a169;
         }
-        .danger-button {
+
+        .button-danger {
           background: #f56565;
+          color: white;
+          margin-right: 10px;
+          margin-bottom: 10px;
         }
-        .danger-button:hover {
+
+        .button-danger:hover {
           background: #e53e3e;
         }
-        code {
-          background: #f5f5f5;
-          padding: 2px 6px;
-          border-radius: 3px;
-          font-family: monospace;
+
+        .button-secondary {
+          background: #edf2f7;
+          color: #4a5568;
+          margin-right: 10px;
+          margin-bottom: 10px;
+        }
+
+        .button-secondary:hover {
+          background: #e2e8f0;
+        }
+
+        .code-block {
+          background: #2d3748;
+          color: #e2e8f0;
+          padding: 20px;
+          border-radius: 8px;
+          overflow-x: auto;
+          font-family: "Courier New", Consolas, monospace;
+          font-size: 0.9rem;
+          line-height: 1.6;
+        }
+
+        .code-block code {
+          background: none;
+          padding: 0;
+        }
+
+        .feature-list {
+          list-style: none;
+          margin-top: 20px;
+        }
+
+        .feature-list li {
+          padding: 12px 0;
+          color: #4a5568;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .feature-list li:last-child {
+          border-bottom: none;
+        }
+
+        .badge {
+          display: inline-block;
+          padding: 4px 12px;
+          background: #e6fffa;
+          color: #234e52;
+          border-radius: 12px;
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+
+        .footer {
+          text-align: center;
+          color: #718096;
+          padding: 40px 20px 20px;
+          border-top: 1px solid #e2e8f0;
+          margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+          .header-banner h1 {
+            font-size: 2rem;
+          }
+
+          .card {
+            padding: 24px;
+          }
+
+          .grid {
+            grid-template-columns: 1fr;
+          }
         }
       </style>
     </head>
     <body>
-      <h1>⚡ Event Loop Monitor Demo</h1>
-      
-      <div class="card">
-        <h2>📊 View the Dashboard</h2>
-        <p>See real-time event loop metrics, health status, and charts.</p>
-        <a href="/event-loop-stats" class="link-button" target="_blank">
-          Open Dashboard
-        </a>
+      <div class="header-banner">
+        <h1>Event Loop Monitor</h1>
+        <p>Real-time performance monitoring for Node.js applications</p>
       </div>
 
-      <div class="card">
-        <h2>🧪 Test Endpoints</h2>
-        <p>Try these endpoints to see how they affect event loop metrics:</p>
-        <a href="/api/test" class="link-button test-button">Simple Request</a>
-        <a href="/api/slow" class="link-button test-button">Slow Request (1s)</a>
-        <a href="/api/cpu" class="link-button danger-button">CPU Intensive (WARNING)</a>
-      </div>
+      <div class="container">
+        <div class="grid">
+          <div class="card card-large">
+            <h2>Live Dashboard</h2>
+            <p>View comprehensive real-time metrics including event loop lag, CPU utilization, memory usage, and performance insights.</p>
+            <a href="/event-loop-stats" class="button button-primary" target="_blank">Open Dashboard</a>
+          </div>
 
-      <div class="card">
-        <h2>📝 Quick Start</h2>
-        <p>Adding monitoring to your Express app is just one line:</p>
-        <pre><code>const { eventLoopMonitor } = require('event-loop-monitor-dashboard');
-app.use(eventLoopMonitor());</code></pre>
-      </div>
+          <div class="card">
+            <h2>Test Endpoints</h2>
+            <p>Explore different scenarios to observe their impact on event loop metrics.</p>
+            <a href="/api/test" class="button button-success">Standard Request</a>
+            <a href="/api/slow" class="button button-success">Async I/O (1s)</a>
+            <a href="/api/cpu" class="button button-danger">CPU Intensive</a>
+          </div>
 
-      <div class="card">
-        <h2>📈 Prometheus Metrics</h2>
-        <p>This example also exposes Prometheus metrics:</p>
-        <a href="/metrics" class="link-button" target="_blank">View Metrics</a>
+          <div class="card">
+            <h2>Monitoring Endpoints</h2>
+            <p>Access health status and metrics for monitoring and alerting systems.</p>
+            <a href="/health" class="button button-secondary" target="_blank">Health Check</a>
+            <a href="/metrics" class="button button-secondary" target="_blank">Prometheus Metrics</a>
+          </div>
+
+          <div class="card card-large">
+            <h2>Quick Integration</h2>
+            <p>Add event loop monitoring to your Express application with minimal configuration.</p>
+            <div class="code-block"><code>const { eventLoopMonitor } = require('event-loop-monitor-dashboard');
+
+app.use(eventLoopMonitor({
+  path: '/event-loop-stats',
+  sampleInterval: 100,
+  historySize: 300
+}));</code></div>
+          </div>
+
+          <div class="card card-large">
+            <h2>Available Features</h2>
+            <ul class="feature-list">
+              <li>
+                <span>Real-time event loop lag monitoring</span>
+                <span class="badge">Core</span>
+              </li>
+              <li>
+                <span>CPU utilization tracking with Event Loop Utilization</span>
+                <span class="badge">Core</span>
+              </li>
+              <li>
+                <span>Memory usage analysis and visualization</span>
+                <span class="badge">Core</span>
+              </li>
+              <li>
+                <span>Configurable alerting with threshold notifications</span>
+                <span class="badge">Alerts</span>
+              </li>
+              <li>
+                <span>Interactive charts with historical data</span>
+                <span class="badge">Visualization</span>
+              </li>
+              <li>
+                <span>Prometheus metrics export</span>
+                <span class="badge">Integration</span>
+              </li>
+              <li>
+                <span>Health check endpoint for load balancers</span>
+                <span class="badge">Integration</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Event Loop Monitor Demo Application v1.0</p>
+        </div>
       </div>
     </body>
     </html>
@@ -156,7 +357,6 @@ app.get('/api/test', (req, res) => {
 
 // Slow endpoint (simulates async I/O)
 app.get('/api/slow', async (req, res) => {
-  // This is fine - doesn't block event loop
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   res.json({
@@ -166,13 +366,12 @@ app.get('/api/slow', async (req, res) => {
   });
 });
 
-// CPU intensive endpoint (blocks event loop - demonstrates the problem!)
+// CPU intensive endpoint (blocks event loop)
 app.get('/api/cpu', (req, res) => {
-  console.log('\n⚠️  WARNING: Running CPU-intensive operation...');
+  console.log('\nWARNING: Running CPU-intensive operation...');
   
   const iterations = req.query.iterations || 1000000;
   
-  // This BLOCKS the event loop!
   const start = Date.now();
   let result = 0;
   for (let i = 0; i < iterations; i++) {
@@ -180,15 +379,15 @@ app.get('/api/cpu', (req, res) => {
   }
   const duration = Date.now() - start;
   
-  console.log(`⚠️  Blocked event loop for ${duration}ms`);
-  console.log('💡 Check the dashboard - you should see lag spike!\n');
+  console.log(`Blocked event loop for ${duration}ms`);
+  console.log('Check the dashboard - you should see lag spike\n');
   
   res.json({
     message: 'CPU intensive operation completed',
     duration: `${duration}ms`,
     iterations: iterations,
     result: result,
-    warning: 'This operation BLOCKED the event loop!',
+    warning: 'This operation BLOCKED the event loop',
     tip: 'Check /event-loop-stats to see the lag spike'
   });
 });
@@ -241,17 +440,17 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(PORT, () => {
   console.log('\n' + '='.repeat(60));
-  console.log('⚡ Event Loop Monitor - Demo Application');
+  console.log('Event Loop Monitor - Demo Application');
   console.log('='.repeat(60));
-  console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`\n📊 Dashboard: http://localhost:${PORT}/event-loop-stats`);
-  console.log(`📈 Metrics:   http://localhost:${PORT}/metrics`);
-  console.log(`🏥 Health:    http://localhost:${PORT}/health`);
-  console.log(`\n💡 Try these endpoints to see event loop impact:`);
-  console.log(`   • GET /api/test     - Normal request`);
-  console.log(`   • GET /api/slow     - Async I/O (no blocking)`);
-  console.log(`   • GET /api/cpu      - CPU intensive (BLOCKS event loop)`);
-  console.log(`\n👀 Watch the dashboard while hitting these endpoints!`);
+  console.log(`\nServer running on http://localhost:${PORT}`);
+  console.log(`\nDashboard: http://localhost:${PORT}/event-loop-stats`);
+  console.log(`Metrics:   http://localhost:${PORT}/metrics`);
+  console.log(`Health:    http://localhost:${PORT}/health`);
+  console.log(`\nTry these endpoints to see event loop impact:`);
+  console.log(`  GET /api/test  - Normal request`);
+  console.log(`  GET /api/slow  - Async I/O (no blocking)`);
+  console.log(`  GET /api/cpu   - CPU intensive (BLOCKS event loop)`);
+  console.log(`\nWatch the dashboard while hitting these endpoints`);
   console.log('='.repeat(60) + '\n');
 });
 
@@ -262,7 +461,7 @@ process.on('SIGINT', () => {
   const { cleanup } = require('../src/middleware/express');
   cleanup();
   
-  console.log('✅ Cleanup complete');
+  console.log('Cleanup complete');
   process.exit(0);
 });
 

@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Event Loop Monitor - Production Dashboard</title>
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
       :root {
         --primary: #2563eb;
@@ -275,63 +278,57 @@
 
       .card-trend {
         font-size: 12px;
-        font-weight: 600;
         padding: 4px 8px;
         border-radius: 4px;
-      }
-
-      .trend-down {
-        background: #dcfce7;
-        color: #166534;
+        font-weight: 600;
       }
 
       .trend-up {
         background: #fee2e2;
-        color: #991b1b;
+        color: var(--danger);
+      }
+
+      .trend-down {
+        background: #d1fae5;
+        color: var(--success);
       }
 
       .trend-stable {
         background: #e5e7eb;
-        color: #374151;
+        color: var(--text-muted);
       }
 
       .card-value {
         font-size: 36px;
         font-weight: 700;
-        line-height: 1;
         margin-bottom: 8px;
         color: var(--text);
       }
 
       .card-label {
-        font-size: 14px;
+        font-size: 13px;
         color: var(--text-muted);
-        margin-bottom: 16px;
       }
 
       .card-details {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr 1fr;
         gap: 12px;
+        margin-top: 16px;
         padding-top: 16px;
         border-top: 1px solid var(--border);
       }
 
       .detail-item {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
+        font-size: 12px;
       }
 
       .detail-label {
-        font-size: 11px;
         color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        margin-bottom: 4px;
       }
 
       .detail-value {
-        font-size: 14px;
         font-weight: 600;
         color: var(--text);
       }
@@ -339,23 +336,19 @@
       /* Charts */
       .charts-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-        gap: 20px;
+        grid-template-columns: 1fr;
+        gap: 24px;
         margin-bottom: 24px;
       }
 
-      .chart-container {
+      .chart-card {
         background: white;
         border-radius: 12px;
         padding: 20px;
         box-shadow: var(--shadow-md);
-        position: relative;
       }
 
       .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         margin-bottom: 16px;
       }
 
@@ -371,73 +364,16 @@
         margin-top: 4px;
       }
 
-      .chart-legend {
-        display: flex;
-        gap: 16px;
-        font-size: 12px;
-      }
-
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .legend-color {
-        width: 12px;
-        height: 12px;
-        border-radius: 2px;
+      .chart-container {
+        position: relative;
+        width: 100%;
+        height: 500px;
       }
 
       canvas {
-        width: 100% !important;
-        height: auto !important;
-        cursor: crosshair;
-      }
-
-      /* Tooltip for charts */
-      .chart-tooltip {
-        position: absolute;
-        background: rgba(17, 24, 39, 0.95);
-        color: white;
-        padding: 12px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        z-index: 1000;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        min-width: 180px;
-      }
-
-      .chart-tooltip.visible {
-        opacity: 1;
-      }
-
-      .tooltip-time {
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #93c5fd;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        padding-bottom: 6px;
-      }
-
-      .tooltip-value {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 4px;
-        align-items: center;
-      }
-
-      .tooltip-label {
-        color: #d1d5db;
-        margin-right: 12px;
-      }
-
-      .tooltip-data {
-        font-weight: 600;
-        font-size: 14px;
+        display: block;
+        width: 100%;
+        height: 100%;
       }
 
       /* Performance Table */
@@ -447,6 +383,13 @@
         padding: 20px;
         box-shadow: var(--shadow-md);
         overflow-x: auto;
+      }
+
+      .performance-table h2 {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text);
       }
 
       table {
@@ -459,19 +402,20 @@
       }
 
       th {
-        padding: 12px 16px;
+        padding: 12px;
         text-align: left;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        border-bottom: 2px solid var(--border);
       }
 
       td {
-        padding: 12px 16px;
+        padding: 16px 12px;
         border-bottom: 1px solid var(--border);
-        font-size: 14px;
+        color: var(--text);
       }
 
       tr:last-child td {
@@ -482,27 +426,39 @@
         display: inline-block;
         padding: 4px 12px;
         border-radius: 12px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
-        text-transform: capitalize;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
       .status-healthy {
-        background: #dcfce7;
-        color: #166534;
+        background: #d1fae5;
+        color: #065f46;
       }
 
       .status-warning {
-        background: #fef3c7;
+        background: #fed7aa;
         color: #92400e;
       }
 
       .status-critical {
-        background: #fee2e2;
+        background: #fecaca;
         color: #991b1b;
       }
 
       /* Insights */
+      .insights-section {
+        margin-bottom: 24px;
+      }
+
+      .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text);
+      }
+
       .insights-grid {
         display: grid;
         gap: 16px;
@@ -513,7 +469,6 @@
         border-radius: 12px;
         padding: 20px;
         box-shadow: var(--shadow-md);
-        border-left: 4px solid var(--primary);
       }
 
       .insight-header {
@@ -540,10 +495,9 @@
       }
 
       .insight-description {
-        color: var(--text-muted);
-        font-size: 14px;
-        line-height: 1.6;
-        margin-bottom: 12px;
+        color: var(--text);
+        margin-bottom: 8px;
+        line-height: 1.5;
       }
 
       .insight-time {
@@ -558,28 +512,34 @@
         padding: 60px 20px;
       }
 
-      .spinner {
-        border: 4px solid var(--border);
-        border-top: 4px solid var(--primary);
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 20px;
+      #loading {
+        color: var(--text-muted);
       }
 
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
+      #error {
+        display: none;
+        background: #fee2e2;
+        border-radius: 12px;
+        padding: 40px;
+        color: #991b1b;
       }
 
-      .error-icon {
-        font-size: 64px;
-        margin-bottom: 20px;
+      .error-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+
+      #content {
+        display: none;
+      }
+
+      /* Footer */
+      footer {
+        text-align: center;
+        padding: 24px;
+        color: var(--text-muted);
+        font-size: 13px;
       }
 
       /* Responsive */
@@ -604,84 +564,53 @@
     </style>
   </head>
   <body>
-    <!-- Loading State -->
-    <div id="loading">
-      <div class="spinner"></div>
-      <p style="color: var(--text-muted); font-size: 16px">
-        Loading dashboard...
-      </p>
-    </div>
-
-    <!-- Error State -->
-    <div id="error" style="display: none">
-      <div class="error-icon">⚠️</div>
-      <h2 style="margin-bottom: 12px; color: var(--text)">
-        Connection Error
-      </h2>
-      <p id="errorMessage" style="color: var(--text-muted); font-size: 16px">
-        Unable to connect to metrics server
-      </p>
-      <button
-        onclick="location.reload()"
-        style="
-          margin-top: 24px;
-          padding: 12px 24px;
-          background: var(--primary);
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 600;
-        "
-      >
-        Retry Connection
-      </button>
-    </div>
-
-    <!-- Main Content -->
-    <div id="content" style="display: none">
-      <!-- Header -->
-      <header>
-        <div class="header-content">
-          <div class="header-left">
-            <h1>⚡ Event Loop Monitor</h1>
-            <p>Real-time Node.js Performance Analytics</p>
-          </div>
-          <div class="header-controls">
-            <select class="time-range-selector" id="timeRange">
-              <option value="300000">Last 5 minutes</option>
-              <option value="900000">Last 15 minutes</option>
-              <option value="1800000">Last 30 minutes</option>
-              <option value="3600000">Last 1 hour</option>
-            </select>
-            <div class="refresh-indicator">
-              <div class="pulse"></div>
-              <span id="lastUpdate">--:--:--</span>
-            </div>
+    <!-- Header -->
+    <header>
+      <div class="header-content">
+        <div class="header-left">
+          <h1>⚡ Event Loop Monitor</h1>
+          <p>Real-time Node.js Performance Analytics</p>
+        </div>
+        <div class="header-controls">
+          <select id="timeRange" class="time-range-selector">
+            <option value="60">Last 1 minute</option>
+            <option value="300" selected>Last 5 minutes</option>
+            <option value="900">Last 15 minutes</option>
+            <option value="1800">Last 30 minutes</option>
+          </select>
+          <div class="refresh-indicator">
+            <div class="pulse"></div>
+            <span id="lastUpdate">--:--:--</span>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <div class="container">
+    <div class="container">
+      <!-- Loading State -->
+      <div id="loading">
+        <h2>⏳ Loading metrics...</h2>
+        <p>Initializing dashboard...</p>
+      </div>
+
+      <!-- Error State -->
+      <div id="error">
+        <div class="error-title">❌ Error Loading Dashboard</div>
+        <p id="errorMessage">Failed to load metrics</p>
+      </div>
+
+      <!-- Main Content -->
+      <div id="content">
         <!-- Health Banner -->
-        <div id="healthBanner" class="health-banner">
+        <div class="health-banner">
           <div class="health-grid">
-            <div class="health-icon" id="healthIcon">✓</div>
+            <div class="health-icon">✓</div>
             <div class="health-details">
-              <h2 id="healthStatus">HEALTHY</h2>
-              <p id="healthMessage">
-                All systems operating normally
-              </p>
+              <h2>HEALTHY</h2>
+              <p>Event loop is healthy</p>
             </div>
             <div class="health-score-display">
-              <div
-                class="health-score-value"
-                id="healthScore"
-                style="color: var(--success)"
-              >
-                100
-              </div>
+              <div class="health-score-value">--</div>
               <div class="health-score-label">HEALTH SCORE</div>
             </div>
           </div>
@@ -689,108 +618,105 @@
 
         <!-- Tabs -->
         <div class="tabs">
-          <button class="tab active" onclick="switchTab('overview')">
-            Overview
-          </button>
-          <button class="tab" onclick="switchTab('performance')">
-            Performance
-          </button>
-          <button class="tab" onclick="switchTab('memory')">Memory</button>
-          <button class="tab" onclick="switchTab('insights')">Insights</button>
+          <button class="tab active" data-tab="overview">Overview</button>
+          <button class="tab" data-tab="performance">Performance</button>
+          <button class="tab" data-tab="insights">Insights</button>
         </div>
 
-        <!-- Overview Tab -->
-        <div id="overview" class="tab-content active">
-          <!-- Metrics Cards -->
+        <!-- Tab: Overview -->
+        <div id="overview-tab" class="tab-content active">
+          <!-- Metric Cards -->
           <div class="cards-grid">
-            <!-- Event Loop Lag Card -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title">Event Loop Lag</div>
-                <div class="card-trend trend-down" id="lagTrend">↓ 1%</div>
+                <div class="card-trend trend-stable">→ 0%</div>
               </div>
-              <div class="card-value" id="lagValue">0.00 ms</div>
+              <div class="card-value"><span id="lagMean">--</span> ms</div>
               <div class="card-label">Mean lag time</div>
               <div class="card-details">
                 <div class="detail-item">
                   <div class="detail-label">P50</div>
-                  <div class="detail-value" id="lagP50">0.00 ms</div>
+                  <div class="detail-value"><span id="lagP50">--</span> ms</div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">P95</div>
-                  <div class="detail-value" id="lagP95">0.00 ms</div>
+                  <div class="detail-value"><span id="lagP95">--</span> ms</div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">P99</div>
-                  <div class="detail-value" id="lagP99">0.00 ms</div>
+                  <div class="detail-value"><span id="lagP99">--</span> ms</div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">MAX</div>
-                  <div class="detail-value" id="lagMax">0.00 ms</div>
+                  <div class="detail-value"><span id="lagMax">--</span> ms</div>
                 </div>
               </div>
             </div>
 
-            <!-- CPU Utilization Card -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title">CPU Utilization</div>
-                <div class="card-trend trend-up" id="cpuTrend">↑ 38%</div>
+                <div class="card-trend trend-stable">→ 0%</div>
               </div>
-              <div class="card-value" id="cpuValue">0.00%</div>
-              <div class="card-label">Event loop Utilization</div>
+              <div class="card-value"><span id="elu">--</span>%</div>
+              <div class="card-label">Event Loop Utilization</div>
               <div class="card-details">
                 <div class="detail-item">
                   <div class="detail-label">Active</div>
-                  <div class="detail-value" id="cpuActive">0.00 ms</div>
+                  <div class="detail-value">
+                    <span id="eluActive">--</span> ms
+                  </div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">Idle</div>
-                  <div class="detail-value" id="cpuIdle">0.00 ms</div>
+                  <div class="detail-value">
+                    <span id="eluIdle">--</span> ms
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Memory Usage Card -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title">Memory Usage</div>
-                <div class="card-trend trend-stable" id="memoryTrend">
-                  ↔ 0%
-                </div>
+                <div class="card-trend trend-stable">→ 0%</div>
               </div>
-              <div class="card-value" id="memoryValue">0.00 MB</div>
+              <div class="card-value"><span id="heapUsed">--</span> MB</div>
               <div class="card-label">Heap memory used</div>
               <div class="card-details">
                 <div class="detail-item">
                   <div class="detail-label">Total</div>
-                  <div class="detail-value" id="memoryTotal">0.00 MB</div>
+                  <div class="detail-value">
+                    <span id="heapTotal">--</span> MB
+                  </div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">RSS</div>
-                  <div class="detail-value" id="memoryRSS">0.00 MB</div>
+                  <div class="detail-value"><span id="rss">--</span> MB</div>
                 </div>
               </div>
             </div>
 
-            <!-- Requests Card -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title">Requests/Sec</div>
-                <div class="card-trend trend-stable" id="requestsTrend">
-                  ↔ 0%
-                </div>
+                <div class="card-trend trend-stable">→ 0%</div>
               </div>
-              <div class="card-value" id="requestsValue">0.00</div>
+              <div class="card-value"><span id="reqCount">--</span></div>
               <div class="card-label">Request count</div>
               <div class="card-details">
                 <div class="detail-item">
                   <div class="detail-label">Avg Time</div>
-                  <div class="detail-value" id="requestsAvgTime">0.00 ms</div>
+                  <div class="detail-value">
+                    <span id="reqAvgTime">--</span> ms
+                  </div>
                 </div>
                 <div class="detail-item">
                   <div class="detail-label">Handles</div>
-                  <div class="detail-value" id="requestsHandles">0</div>
+                  <div class="detail-value">
+                    <span id="activeHandles">--</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -798,93 +724,58 @@
 
           <!-- Charts -->
           <div class="charts-grid">
-            <!-- Event Loop Lag Chart -->
-            <div class="chart-container">
+            <div class="chart-card">
               <div class="chart-header">
-                <div>
-                  <div class="chart-title">Event Loop Lag Trend</div>
-                  <div class="chart-subtitle">Mean, P95, and P99 over time</div>
-                </div>
-                <div class="chart-legend">
-                  <div class="legend-item">
-                    <div
-                      class="legend-color"
-                      style="background: #3b82f6"
-                    ></div>
-                    <span>Mean</span>
-                  </div>
-                  <div class="legend-item">
-                    <div
-                      class="legend-color"
-                      style="background: #f59e0b"
-                    ></div>
-                    <span>P95</span>
-                  </div>
-                  <div class="legend-item">
-                    <div
-                      class="legend-color"
-                      style="background: #ef4444"
-                    ></div>
-                    <span>P99</span>
-                  </div>
-                </div>
+                <div class="chart-title">Event Loop Lag Trend</div>
+                <div class="chart-subtitle">Mean, P95, and P99 over time</div>
               </div>
-              <canvas id="lagChart" width="600" height="300"></canvas>
-              <div class="chart-tooltip" id="lagTooltip"></div>
+              <div class="chart-container">
+                <canvas id="lagChart"></canvas>
+              </div>
             </div>
 
-            <!-- CPU Utilization Chart -->
-            <div class="chart-container">
+            <div class="chart-card">
               <div class="chart-header">
-                <div>
-                  <div class="chart-title">CPU Utilization</div>
-                  <div class="chart-subtitle">
-                    Event loop utilization percentage
-                  </div>
-                </div>
-                <div class="chart-legend">
-                  <div class="legend-item">
-                    <div
-                      class="legend-color"
-                      style="background: #10b981"
-                    ></div>
-                    <span>Utilization</span>
-                  </div>
+                <div class="chart-title">CPU Utilization</div>
+                <div class="chart-subtitle">
+                  Event loop utilization percentage
                 </div>
               </div>
-              <canvas id="cpuChart" width="600" height="300"></canvas>
-              <div class="chart-tooltip" id="cpuTooltip"></div>
+              <div class="chart-container">
+                <canvas id="eluChart"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-header">
+                <div class="chart-title">Memory Usage Trend</div>
+                <div class="chart-subtitle">Heap memory usage over time</div>
+              </div>
+              <div class="chart-container">
+                <canvas id="memoryChart"></canvas>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Performance Tab -->
-        <div id="performance" class="tab-content">
+        <!-- Tab: Performance -->
+        <div id="performance-tab" class="tab-content">
           <div class="performance-table">
-            <h3
-              style="
-                font-size: 18px;
-                font-weight: 600;
-                margin-bottom: 20px;
-                color: var(--text);
-              "
-            >
-              Performance Metrics Summary
-            </h3>
+            <h2>Performance Breakdown</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Metric</th>
-                  <th>Current</th>
-                  <th>Average</th>
-                  <th>Peak</th>
-                  <th>Status</th>
+                  <th>METRIC</th>
+                  <th>CURRENT</th>
+                  <th>AVERAGE</th>
+                  <th>PEAK</th>
+                  <th>STATUS</th>
                 </tr>
               </thead>
               <tbody id="perfTableBody">
                 <tr>
                   <td colspan="5" style="text-align: center; padding: 40px">
-                    Loading metrics...
+                    Waiting for metrics data...
                   </td>
                 </tr>
               </tbody>
@@ -892,829 +783,613 @@
           </div>
         </div>
 
-        <!-- Memory Tab -->
-        <div id="memory" class="tab-content">
-          <div class="chart-container">
-            <div class="chart-header">
-              <div>
-                <div class="chart-title">Memory Usage Over Time</div>
-                <div class="chart-subtitle">Heap memory consumption</div>
-              </div>
-            </div>
-            <canvas id="memoryChart" width="1200" height="400"></canvas>
-            <div class="chart-tooltip" id="memoryTooltip"></div>
-          </div>
-        </div>
-
-        <!-- Insights Tab -->
-        <div id="insights" class="tab-content">
-          <div class="insights-grid" id="insightsContainer">
-            <div class="insight-card">
-              <div class="insight-header">
-                <div
-                  class="insight-icon"
-                  style="background: #dbeafe; color: #2563eb"
-                >
-                  💡
+        <!-- Tab: Insights -->
+        <div id="insights-tab" class="tab-content">
+          <div class="insights-section">
+            <h2 class="section-title">System Insights & Recommendations</h2>
+            <div class="insights-grid" id="insightsContainer">
+              <div class="insight-card">
+                <div class="insight-header">
+                  <div
+                    class="insight-icon"
+                    style="background: #dbeafe; color: #2563eb"
+                  >
+                    💡
+                  </div>
+                  <div class="insight-title">Loading insights...</div>
                 </div>
-                <div class="insight-title">Waiting for data...</div>
+                <p class="insight-description">Analyzing metrics...</p>
               </div>
-              <p class="insight-description">
-                Insights will appear once metrics are collected
-              </p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <footer>
+      <p>Event Loop Monitor Dashboard v2.0 | Updated every 2 seconds</p>
+    </footer>
+
     <script>
-      // ============================================================================
-      // CONFIGURATION
-      // ============================================================================
-
+      // Configuration
       const CONFIG = {
-        apiUrl: "http://localhost:3000",
         refreshInterval: 2000,
-        maxDataPoints: 100,
-        timeWindow: 300000,
+        maxDataPoints: 300,
+        basePath: window.location.pathname.replace(/\/$/, "") + "/",
       };
 
-      // ============================================================================
-      // STATE MANAGEMENT
-      // ============================================================================
-
+      // State
       let state = {
-        rawData: [],
-        filteredData: [],
-        aggregated: null,
         currentTab: "overview",
-        lastUpdate: null,
+        timeRange: 300,
+        history: {
+          lag: [],
+          elu: [],
+          memory: [],
+          requests: [],
+        },
+        aggregated: null,
+        charts: {
+          lag: null,
+          elu: null,
+          memory: null,
+        },
       };
 
-      // ============================================================================
-      // INITIALIZATION
-      // ============================================================================
-
+      // Initialize
       document.addEventListener("DOMContentLoaded", () => {
+        initializeCharts();
         setupEventListeners();
         startDataFetching();
       });
 
       function setupEventListeners() {
-        const timeRange = document.getElementById("timeRange");
-        if (timeRange) {
-          timeRange.addEventListener("change", (e) => {
-            CONFIG.timeWindow = parseInt(e.target.value);
-            updateDashboard(state.rawData);
+        // Tab switching
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+        });
+
+        // Time range selector
+        const timeRangeEl = document.getElementById("timeRange");
+        if (timeRangeEl) {
+          timeRangeEl.addEventListener("change", (e) => {
+            state.timeRange = parseInt(e.target.value);
+            // Clear charts to show loading
+            if (state.charts.lag) {
+              state.charts.lag.data.labels = [];
+              state.charts.lag.data.datasets.forEach(ds => ds.data = []);
+              state.charts.lag.update();
+            }
+            if (state.charts.elu) {
+              state.charts.elu.data.labels = [];
+              state.charts.elu.data.datasets.forEach(ds => ds.data = []);
+              state.charts.elu.update();
+            }
+            if (state.charts.memory) {
+              state.charts.memory.data.labels = [];
+              state.charts.memory.data.datasets.forEach(ds => ds.data = []);
+              state.charts.memory.update();
+            }
+            // Fetch new data
+            fetchDashboardData();
+          });
+        }
+      }
+
+      function initializeCharts() {
+        // Initialize Lag Chart
+        const lagCanvas = document.getElementById("lagChart");
+        if (lagCanvas) {
+          state.charts.lag = new Chart(lagCanvas, {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Mean",
+                  data: [],
+                  borderColor: "#2563eb",
+                  backgroundColor: "rgba(37, 99, 235, 0.1)",
+                  borderWidth: 3,
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 0,
+                  pointHoverRadius: 6,
+                },
+                {
+                  label: "P95",
+                  data: [],
+                  borderColor: "#f59e0b",
+                  backgroundColor: "rgba(245, 158, 11, 0.1)",
+                  borderWidth: 3,
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 0,
+                  pointHoverRadius: 6,
+                },
+                {
+                  label: "P99",
+                  data: [],
+                  borderColor: "#ef4444",
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  borderWidth: 3,
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 0,
+                  pointHoverRadius: 6,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                intersect: false,
+                mode: "index",
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  enabled: true,
+                  backgroundColor: "rgba(17, 24, 39, 0.95)",
+                  padding: 12,
+                  titleColor: "#fff",
+                  bodyColor: "#fff",
+                  callbacks: {
+                    title: function (context) {
+                      const date = new Date(context[0].parsed.x);
+                      return date.toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      });
+                    },
+                    label: function (context) {
+                      return context.dataset.label + ": " + context.parsed.y.toFixed(2) + " ms";
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  type: "time",
+                  time: {
+                    displayFormats: {
+                      second: "HH:mm:ss",
+                      minute: "HH:mm",
+                      hour: "HH:mm",
+                    },
+                  },
+                  title: {
+                    display: true,
+                    text: "Time",
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: "Latency (ms)",
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+              },
+            },
           });
         }
 
-        setupChartTooltips();
-      }
+        // Initialize ELU Chart
+        const eluCanvas = document.getElementById("eluChart");
+        if (eluCanvas) {
+          state.charts.elu = new Chart(eluCanvas, {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "CPU Utilization",
+                  data: [],
+                  borderColor: "#10b981",
+                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                  borderWidth: 3,
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 0,
+                  pointHoverRadius: 6,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                intersect: false,
+                mode: "index",
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  enabled: true,
+                  backgroundColor: "rgba(17, 24, 39, 0.95)",
+                  padding: 12,
+                  titleColor: "#fff",
+                  bodyColor: "#fff",
+                  callbacks: {
+                    title: function (context) {
+                      const date = new Date(context[0].parsed.x);
+                      return date.toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      });
+                    },
+                    label: function (context) {
+                      return context.dataset.label + ": " + context.parsed.y.toFixed(1) + "%";
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  type: "time",
+                  time: {
+                    displayFormats: {
+                      second: "HH:mm:ss",
+                      minute: "HH:mm",
+                      hour: "HH:mm",
+                    },
+                  },
+                  title: {
+                    display: true,
+                    text: "Time",
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+                y: {
+                  beginAtZero: true,
+                  max: 100,
+                  title: {
+                    display: true,
+                    text: "Utilization (%)",
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+              },
+            },
+          });
+        }
 
-      function setupChartTooltips() {
-        const lagCanvas = document.getElementById("lagChart");
-        const cpuCanvas = document.getElementById("cpuChart");
+        // Initialize Memory Chart
         const memoryCanvas = document.getElementById("memoryChart");
-
-        if (lagCanvas) {
-          lagCanvas.addEventListener("mousemove", (e) =>
-            handleChartHover(e, lagCanvas, "lagTooltip", "lag")
-          );
-          lagCanvas.addEventListener("mouseout", () =>
-            hideTooltip("lagTooltip")
-          );
-        }
-
-        if (cpuCanvas) {
-          cpuCanvas.addEventListener("mousemove", (e) =>
-            handleChartHover(e, cpuCanvas, "cpuTooltip", "cpu")
-          );
-          cpuCanvas.addEventListener("mouseout", () =>
-            hideTooltip("cpuTooltip")
-          );
-        }
-
         if (memoryCanvas) {
-          memoryCanvas.addEventListener("mousemove", (e) =>
-            handleChartHover(e, memoryCanvas, "memoryTooltip", "memory")
-          );
-          memoryCanvas.addEventListener("mouseout", () =>
-            hideTooltip("memoryTooltip")
-          );
+          state.charts.memory = new Chart(memoryCanvas, {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Heap Used",
+                  data: [],
+                  borderColor: "#8b5cf6",
+                  backgroundColor: "rgba(139, 92, 246, 0.1)",
+                  borderWidth: 3,
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 0,
+                  pointHoverRadius: 6,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                intersect: false,
+                mode: "index",
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  enabled: true,
+                  backgroundColor: "rgba(17, 24, 39, 0.95)",
+                  padding: 12,
+                  titleColor: "#fff",
+                  bodyColor: "#fff",
+                  callbacks: {
+                    title: function (context) {
+                      const date = new Date(context[0].parsed.x);
+                      return date.toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      });
+                    },
+                    label: function (context) {
+                      return context.dataset.label + ": " + context.parsed.y.toFixed(1) + " MB";
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  type: "time",
+                  time: {
+                    displayFormats: {
+                      second: "HH:mm:ss",
+                      minute: "HH:mm",
+                      hour: "HH:mm",
+                    },
+                  },
+                  title: {
+                    display: true,
+                    text: "Time",
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: "Memory (MB)",
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+              },
+            },
+          });
         }
       }
-
-      function handleChartHover(event, canvas, tooltipId, chartType) {
-        const tooltip = document.getElementById(tooltipId);
-        if (!tooltip || !state.filteredData.length) return;
-
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = { top: 40, right: 40, bottom: 60, left: 80 };
-
-        const chartWidth = width - padding.left - padding.right;
-        const relativeX = x - padding.left;
-
-        if (
-          relativeX < 0 ||
-          relativeX > chartWidth ||
-          y < padding.top ||
-          y > height - padding.bottom
-        ) {
-          hideTooltip(tooltipId);
-          return;
-        }
-
-        const dataIndex = Math.round(
-          (relativeX / chartWidth) * (state.filteredData.length - 1)
-        );
-        const dataPoint = state.filteredData[dataIndex];
-
-        if (!dataPoint) {
-          hideTooltip(tooltipId);
-          return;
-        }
-
-        let content = `<div class="tooltip-time">${formatTime(
-          dataPoint.timestamp
-        )}</div>`;
-
-        if (chartType === "lag") {
-          content += `
-            <div class="tooltip-value">
-              <span class="tooltip-label">Mean:</span>
-              <span class="tooltip-data">${dataPoint.lag.toFixed(2)} ms</span>
-            </div>
-            <div class="tooltip-value">
-              <span class="tooltip-label">P95:</span>
-              <span class="tooltip-data">${dataPoint.p95.toFixed(2)} ms</span>
-            </div>
-            <div class="tooltip-value">
-              <span class="tooltip-label">P99:</span>
-              <span class="tooltip-data">${dataPoint.p99.toFixed(2)} ms</span>
-            </div>
-          `;
-        } else if (chartType === "cpu") {
-          content += `
-            <div class="tooltip-value">
-              <span class="tooltip-label">Utilization:</span>
-              <span class="tooltip-data">${(dataPoint.elu * 100).toFixed(
-                2
-              )}%</span>
-            </div>
-            <div class="tooltip-value">
-              <span class="tooltip-label">Active:</span>
-              <span class="tooltip-data">${dataPoint.active.toFixed(2)} ms</span>
-            </div>
-            <div class="tooltip-value">
-              <span class="tooltip-label">Idle:</span>
-              <span class="tooltip-data">${dataPoint.idle.toFixed(2)} ms</span>
-            </div>
-          `;
-        } else if (chartType === "memory") {
-          const heapMB = parseFloat(dataPoint.heapUsedMB);
-          const totalMB = parseFloat(dataPoint.heapTotalMB);
-          const rssMB = parseFloat(dataPoint.rssMB);
-          content += `
-            <div class="tooltip-value">
-              <span class="tooltip-label">Heap Used:</span>
-              <span class="tooltip-data">${heapMB.toFixed(2)} MB</span>
-            </div>
-            <div class="tooltip-value">
-              <span class="tooltip-label">Heap Total:</span>
-              <span class="tooltip-data">${totalMB.toFixed(2)} MB</span>
-            </div>
-            <div class="tooltip-value">
-              <span class="tooltip-label">RSS:</span>
-              <span class="tooltip-data">${rssMB.toFixed(2)} MB</span>
-            </div>
-          `;
-        }
-
-        tooltip.innerHTML = content;
-        tooltip.classList.add("visible");
-
-        const tooltipRect = tooltip.getBoundingClientRect();
-        let tooltipX = event.clientX + 15;
-        let tooltipY = event.clientY - tooltipRect.height / 2;
-
-        if (tooltipX + tooltipRect.width > window.innerWidth - 20) {
-          tooltipX = event.clientX - tooltipRect.width - 15;
-        }
-
-        if (tooltipY < 10) tooltipY = 10;
-        if (tooltipY + tooltipRect.height > window.innerHeight - 10) {
-          tooltipY = window.innerHeight - tooltipRect.height - 10;
-        }
-
-        tooltip.style.left = tooltipX + "px";
-        tooltip.style.top = tooltipY + "px";
-      }
-
-      function hideTooltip(tooltipId) {
-        const tooltip = document.getElementById(tooltipId);
-        if (tooltip) {
-          tooltip.classList.remove("visible");
-        }
-      }
-
-      // ============================================================================
-      // TAB MANAGEMENT
-      // ============================================================================
 
       function switchTab(tabName) {
-        const tabs = document.querySelectorAll(".tab");
-        const contents = document.querySelectorAll(".tab-content");
-
-        tabs.forEach((tab) => tab.classList.remove("active"));
-        contents.forEach((content) => content.classList.remove("active"));
-
-        event.target.classList.add("active");
-        document.getElementById(tabName).classList.add("active");
-
         state.currentTab = tabName;
 
-        if (tabName === "memory" && state.filteredData.length > 0) {
-          setTimeout(() => drawMemoryChart(state.filteredData), 50);
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
+
+        document
+          .querySelector(`[data-tab="${tabName}"]`)
+          ?.classList.add("active");
+        document.getElementById(`${tabName}-tab`)?.classList.add("active");
+
+        // Trigger updates for specific tabs
+        if (tabName === "performance") {
+          updatePerformanceTable(state.aggregated);
+        } else if (tabName === "overview") {
+          drawCharts();
         }
       }
-
-      // ============================================================================
-      // DATA FETCHING
-      // ============================================================================
 
       async function fetchDashboardData() {
         try {
-          const response = await fetch(`${CONFIG.apiUrl}/metrics`);
+          const apiUrl = `${CONFIG.basePath}api/dashboard?timeRange=${state.timeRange}`;
+          const response = await fetch(apiUrl);
 
           if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
-          const data = await response.json();
+          const result = await response.json();
 
-          if (data && data.current && data.history) {
+          if (result.status === "ok" && result.data) {
             hideError();
-            state.rawData = data.history;
-            updateDashboard(data.history);
             showContent();
+            updateDashboard(result.data);
+            updateLastUpdate();
+          } else {
+            throw new Error(result.message || "Unknown error");
           }
         } catch (error) {
-          if (document.getElementById("content").style.display === "none") {
-            showError(
-              "Unable to connect to metrics server. Please ensure the Node.js monitoring server is running."
-            );
-          }
+          showError(`Failed to fetch metrics: ${error.message}`);
         }
       }
 
-      // ============================================================================
-      // DASHBOARD UPDATE
-      // ============================================================================
+      function updateDashboard(data) {
+        state.aggregated = data.aggregated;
+        updateHealthBanner(data.health, data.current);
+        updateMetricCards(data.current, data.trends);
+        updateHistory(data.timeSeries);
 
-      function updateDashboard(rawData) {
-        if (!rawData || rawData.length === 0) return;
+        // Always update all charts (they'll only render if visible)
+        updateLagChart();
+        updateEluChart();
+        updateMemoryChart();
 
-        const now = Date.now();
-        const filteredData = rawData.filter(
-          (point) => now - point.timestamp <= CONFIG.timeWindow
-        );
-
-        state.filteredData = filteredData;
-
-        if (filteredData.length === 0) return;
-
-        const aggregated = aggregateMetrics(filteredData);
-        state.aggregated = aggregated;
-
-        updateHealthBanner(aggregated);
-        updateMetricCards(aggregated);
-        updateCharts(filteredData);
-        updatePerformanceTable(aggregated);
-        updateInsights(aggregated);
-        updateLastUpdate();
-      }
-
-      function aggregateMetrics(data) {
-        if (!data || data.length === 0) return null;
-
-        const getValue = (arr) => {
-          const sorted = [...arr].sort((a, b) => a - b);
-          return {
-            min: sorted[0],
-            max: sorted[sorted.length - 1],
-            avg: sorted.reduce((a, b) => a + b, 0) / sorted.length,
-            p50: sorted[Math.floor(sorted.length * 0.5)],
-            p95: sorted[Math.floor(sorted.length * 0.95)],
-            p99: sorted[Math.floor(sorted.length * 0.99)],
-          };
-        };
-
-        const lags = data.map((d) => d.lag);
-        const elus = data.map((d) => d.elu * 100);
-        const memories = data.map((d) => parseFloat(d.heapUsedMB));
-
-        const aggregated = {
-          lag: getValue(lags),
-          elu: getValue(elus),
-          memory: getValue(memories),
-          insights: generateInsights(getValue(lags), getValue(elus)),
-        };
-
-        return aggregated;
-      }
-
-      function generateInsights(lag, elu) {
-        const insights = [];
-
-        if (lag.avg > 100) {
-          insights.push({
-            severity: "critical",
-            title: "High Event Loop Lag Detected",
-            message: `Average lag is ${lag.avg.toFixed(
-              2
-            )}ms, significantly impacting response times.`,
-            recommendation:
-              "Consider optimizing synchronous operations or distributing load.",
-          });
-        } else if (lag.avg > 50) {
-          insights.push({
-            severity: "warning",
-            title: "Elevated Event Loop Lag",
-            message: `Event loop lag averaging ${lag.avg.toFixed(
-              2
-            )}ms may cause performance degradation.`,
-            recommendation: "Monitor for blocking operations in your code.",
-          });
-        }
-
-        if (elu.avg > 90) {
-          insights.push({
-            severity: "critical",
-            title: "CPU Utilization Critical",
-            message: `CPU utilization at ${elu.avg.toFixed(
-              1
-            )}% - system under heavy load.`,
-            recommendation:
-              "Scale horizontally or optimize CPU-intensive operations.",
-          });
-        } else if (elu.avg > 70) {
-          insights.push({
-            severity: "warning",
-            title: "High CPU Utilization",
-            message: `CPU utilization at ${elu.avg.toFixed(
-              1
-            )}% - approaching capacity limits.`,
-          });
-        }
-
-        if (lag.p99 > 200) {
-          insights.push({
-            severity: "warning",
-            title: "P99 Latency Spike",
-            message: `99th percentile lag at ${lag.p99.toFixed(
-              2
-            )}ms indicates occasional severe delays.`,
-            recommendation: "Investigate periodic blocking operations.",
-          });
-        }
-
-        return insights;
-      }
-
-      // ============================================================================
-      // HEALTH BANNER
-      // ============================================================================
-
-      function updateHealthBanner(aggregated) {
-        const banner = document.getElementById("healthBanner");
-        const icon = document.getElementById("healthIcon");
-        const status = document.getElementById("healthStatus");
-        const message = document.getElementById("healthMessage");
-        const score = document.getElementById("healthScore");
-
-        if (!aggregated || !banner) return;
-
-        let healthScore = 100;
-        let healthStatus = "HEALTHY";
-        let healthMessage = "All systems operating normally";
-        let healthIcon = "✓";
-        let scoreColor = "var(--success)";
-
-        if (aggregated.lag.avg > 10)
-          healthScore -= Math.min(30, (aggregated.lag.avg - 10) / 3);
-        if (aggregated.lag.p99 > 50)
-          healthScore -= Math.min(20, (aggregated.lag.p99 - 50) / 5);
-        if (aggregated.elu.avg > 50)
-          healthScore -= Math.min(30, (aggregated.elu.avg - 50) / 2);
-        if (aggregated.memory.avg > 100)
-          healthScore -= Math.min(20, (aggregated.memory.avg - 100) / 10);
-
-        healthScore = Math.max(0, Math.floor(healthScore));
-
-        banner.classList.remove("degraded", "critical");
-
-        if (healthScore < 50) {
-          healthStatus = "CRITICAL";
-          healthMessage = `Critical memory: ${(
-            (aggregated.memory.avg / aggregated.memory.max) *
-            100
-          ).toFixed(1)}%`;
-          healthIcon = "⚠️";
-          scoreColor = "var(--danger)";
-          banner.classList.add("critical");
-        } else if (healthScore < 75) {
-          healthStatus = "DEGRADED";
-          healthMessage = "Performance degradation detected";
-          healthIcon = "⚡";
-          scoreColor = "var(--warning)";
-          banner.classList.add("degraded");
-        }
-
-        if (icon) icon.textContent = healthIcon;
-        if (status) status.textContent = healthStatus;
-        if (message) message.textContent = healthMessage;
-        if (score) {
-          score.textContent = healthScore;
-          score.style.color = scoreColor;
+        // Update tab-specific content
+        if (state.currentTab === "performance") {
+          updatePerformanceTable(state.aggregated);
+        } else if (state.currentTab === "insights") {
+          updateInsights(data);
         }
       }
 
-      // ============================================================================
-      // METRIC CARDS
-      // ============================================================================
+      function updateHealthBanner(health, current) {
+        const banner = document.querySelector(".health-banner");
+        if (!banner) return;
 
-      function updateMetricCards(aggregated) {
-        if (!aggregated) return;
+        banner.classList.remove("healthy", "degraded", "critical");
+        banner.classList.add(health.status);
 
-        document.getElementById("lagValue").textContent =
-          aggregated.lag.avg.toFixed(2) + " ms";
+        const icon = document.querySelector(".health-icon");
+        if (icon) {
+          icon.textContent =
+            health.status === "healthy"
+              ? "✓"
+              : health.status === "degraded"
+              ? "⚠"
+              : "✕";
+        }
+
+        const statusEl = document.querySelector(".health-details h2");
+        if (statusEl) statusEl.textContent = health.status.toUpperCase();
+
+        const messageEl = document.querySelector(".health-details p");
+        if (messageEl) messageEl.textContent = health.message;
+
+        const scoreEl = document.querySelector(".health-score-value");
+        if (scoreEl) scoreEl.textContent = health.score.toFixed(1);
+      }
+
+      function updateMetricCards(current, trends) {
+        // Event Loop Lag
+        updateCard("lagMean", current.lag.mean, "ms", trends?.lag);
         document.getElementById("lagP50").textContent =
-          aggregated.lag.p50.toFixed(2) + " ms";
+          current.lag.p50.toFixed(2);
         document.getElementById("lagP95").textContent =
-          aggregated.lag.p95.toFixed(2) + " ms";
+          current.lag.p95.toFixed(2);
         document.getElementById("lagP99").textContent =
-          aggregated.lag.p99.toFixed(2) + " ms";
+          current.lag.p99.toFixed(2);
         document.getElementById("lagMax").textContent =
-          aggregated.lag.max.toFixed(2) + " ms";
+          current.lag.max.toFixed(2);
 
-        document.getElementById("cpuValue").textContent =
-          aggregated.elu.avg.toFixed(2) + "%";
-        document.getElementById("cpuActive").textContent = "0.29 ms";
-        document.getElementById("cpuIdle").textContent = "108.91 ms";
+        // ELU
+        updateCard("elu", current.elu.utilization, "%", trends?.elu);
+        document.getElementById("eluActive").textContent =
+          current.elu.active.toFixed(2);
+        document.getElementById("eluIdle").textContent =
+          current.elu.idle.toFixed(2);
 
-        document.getElementById("memoryValue").textContent =
-          aggregated.memory.avg.toFixed(2) + " MB";
-        document.getElementById("memoryTotal").textContent = "23.04 MB";
-        document.getElementById("memoryRSS").textContent = "53.10 MB";
-
-        document.getElementById("requestsValue").textContent = "0.00";
-        document.getElementById("requestsAvgTime").textContent = "0.00 ms";
-        document.getElementById("requestsHandles").textContent = "4";
-      }
-
-      // ============================================================================
-      // CHARTS
-      // ============================================================================
-
-      function updateCharts(data) {
-        drawLagChart(data);
-        drawCPUChart(data);
-
-        if (state.currentTab === "memory") {
-          drawMemoryChart(data);
-        }
-      }
-
-      function formatTime(timestamp) {
-        return new Date(timestamp).toLocaleTimeString();
-      }
-
-      function formatTimeShort(timestamp) {
-        const date = new Date(timestamp);
-        return date.getHours() + ":" + String(date.getMinutes()).padStart(2, "0");
-      }
-
-      function drawLagChart(data) {
-        const canvas = document.getElementById("lagChart");
-        if (!canvas || !data || data.length === 0) return;
-
-        const ctx = canvas.getContext("2d");
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = { top: 40, right: 40, bottom: 60, left: 80 };
-
-        ctx.clearRect(0, 0, width, height);
-
-        const maxLag = Math.max(
-          ...data.map((d) => Math.max(d.lag, d.p95, d.p99))
-        );
-        const maxY = Math.ceil(maxLag * 1.2);
-
-        ctx.fillStyle = "#f9fafb";
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 5; i++) {
-          const y =
-            height -
-            padding.bottom -
-            ((height - padding.top - padding.bottom) * i) / 5;
-          ctx.beginPath();
-          ctx.moveTo(padding.left, y);
-          ctx.lineTo(width - padding.right, y);
-          ctx.stroke();
-
-          ctx.fillStyle = "#6b7280";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "right";
-          ctx.fillText(
-            ((maxY * i) / 5).toFixed(1) + " ms",
-            padding.left - 10,
-            y + 4
+        // Memory
+        if (current.memory) {
+          updateCard(
+            "heapUsed",
+            parseFloat(current.memory.heapUsedMB),
+            "MB",
+            trends?.memory
           );
+          document.getElementById("heapTotal").textContent =
+            current.memory.heapTotalMB;
+          document.getElementById("rss").textContent = current.memory.rssMB;
         }
 
-        const timeStep = Math.ceil(data.length / 6);
-        for (let i = 0; i < data.length; i += timeStep) {
-          const x =
-            padding.left +
-            ((width - padding.left - padding.right) * i) / (data.length - 1 || 1);
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.beginPath();
-          ctx.moveTo(x, padding.top);
-          ctx.lineTo(x, height - padding.bottom);
-          ctx.stroke();
-
-          ctx.fillStyle = "#6b7280";
-          ctx.font = "11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            formatTimeShort(data[i].timestamp),
-            x,
-            height - padding.bottom + 20
-          );
+        // Requests
+        updateCard("reqCount", current.requests.count, "", trends?.requests);
+        document.getElementById("reqAvgTime").textContent =
+          current.requests.avgTime.toFixed(2);
+        if (current.handles) {
+          document.getElementById("activeHandles").textContent =
+            current.handles.active;
         }
-
-        ctx.save();
-        ctx.translate(15, height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#6b7280";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("Event Loop Lag (ms)", 0, 0);
-        ctx.restore();
-
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#6b7280";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("Time", width / 2, height - 10);
-
-        drawDataLine(ctx, data, "lag", "#3b82f6", maxY, width, height, padding);
-        drawDataLine(ctx, data, "p95", "#f59e0b", maxY, width, height, padding);
-        drawDataLine(ctx, data, "p99", "#ef4444", maxY, width, height, padding);
       }
 
-      function drawCPUChart(data) {
-        const canvas = document.getElementById("cpuChart");
-        if (!canvas || !data || data.length === 0) return;
+      function updateCard(id, value, unit, trend) {
+        const el = document.getElementById(id);
+        if (!el) return;
 
-        const ctx = canvas.getContext("2d");
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = { top: 40, right: 40, bottom: 60, left: 80 };
+        const formatted = typeof value === "number" ? value.toFixed(2) : value;
+        el.textContent = formatted;
 
-        ctx.clearRect(0, 0, width, height);
-
-        const maxY = 100;
-
-        ctx.fillStyle = "#f9fafb";
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 5; i++) {
-          const y =
-            height -
-            padding.bottom -
-            ((height - padding.top - padding.bottom) * i) / 5;
-          ctx.beginPath();
-          ctx.moveTo(padding.left, y);
-          ctx.lineTo(width - padding.right, y);
-          ctx.stroke();
-
-          ctx.fillStyle = "#6b7280";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "right";
-          ctx.fillText((maxY * i) / 5 + "%", padding.left - 10, y + 4);
-        }
-
-        const timeStep = Math.ceil(data.length / 6);
-        for (let i = 0; i < data.length; i += timeStep) {
-          const x =
-            padding.left +
-            ((width - padding.left - padding.right) * i) / (data.length - 1 || 1);
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.beginPath();
-          ctx.moveTo(x, padding.top);
-          ctx.lineTo(x, height - padding.bottom);
-          ctx.stroke();
-
-          ctx.fillStyle = "#6b7280";
-          ctx.font = "11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            formatTimeShort(data[i].timestamp),
-            x,
-            height - padding.bottom + 20
-          );
-        }
-
-        ctx.save();
-        ctx.translate(15, height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#6b7280";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("CPU Utilization (%)", 0, 0);
-        ctx.restore();
-
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#6b7280";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("Time", width / 2, height - 10);
-
-        ctx.strokeStyle = "#10b981";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        data.forEach((point, i) => {
-          const x =
-            padding.left +
-            ((width - padding.left - padding.right) * i) /
-              (data.length - 1 || 1);
-          const value = point.elu * 100;
-          const y =
-            height -
-            padding.bottom -
-            (value / maxY) * (height - padding.top - padding.bottom);
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
+        if (trend) {
+          const card = el.closest(".card");
+          if (card) {
+            const trendEl = card.querySelector(".card-trend");
+            if (trendEl) {
+              trendEl.className = `card-trend trend-${trend.direction}`;
+              const arrow =
+                trend.direction === "up"
+                  ? "↑"
+                  : trend.direction === "down"
+                  ? "↓"
+                  : "→";
+              trendEl.textContent = `${arrow} ${trend.change}%`;
+            }
           }
-        });
-
-        ctx.stroke();
-      }
-
-      function drawMemoryChart(data) {
-        const canvas = document.getElementById("memoryChart");
-        if (!canvas || !data || data.length === 0) return;
-
-        const ctx = canvas.getContext("2d");
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = { top: 40, right: 40, bottom: 60, left: 80 };
-
-        ctx.clearRect(0, 0, width, height);
-
-        const maxMemory = Math.max(
-          ...data.map((d) => parseFloat(d.heapUsedMB))
-        );
-        const maxY = Math.ceil(maxMemory * 1.2);
-
-        ctx.fillStyle = "#f9fafb";
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 5; i++) {
-          const y =
-            height -
-            padding.bottom -
-            ((height - padding.top - padding.bottom) * i) / 5;
-          ctx.beginPath();
-          ctx.moveTo(padding.left, y);
-          ctx.lineTo(width - padding.right, y);
-          ctx.stroke();
-
-          ctx.fillStyle = "#6b7280";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "right";
-          ctx.fillText(
-            ((maxY * i) / 5).toFixed(1) + " MB",
-            padding.left - 10,
-            y + 4
-          );
         }
-
-        const timeStep = Math.ceil(data.length / 8);
-        for (let i = 0; i < data.length; i += timeStep) {
-          const x =
-            padding.left +
-            ((width - padding.left - padding.right) * i) / (data.length - 1 || 1);
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.beginPath();
-          ctx.moveTo(x, padding.top);
-          ctx.lineTo(x, height - padding.bottom);
-          ctx.stroke();
-
-          ctx.fillStyle = "#6b7280";
-          ctx.font = "11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            formatTimeShort(data[i].timestamp),
-            x,
-            height - padding.bottom + 20
-          );
-        }
-
-        ctx.save();
-        ctx.translate(15, height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#6b7280";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("Memory Usage (MB)", 0, 0);
-        ctx.restore();
-
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#6b7280";
-        ctx.font = "12px sans-serif";
-        ctx.fillText("Time", width / 2, height - 10);
-
-        ctx.strokeStyle = "#8b5cf6";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        data.forEach((point, i) => {
-          const x =
-            padding.left +
-            ((width - padding.left - padding.right) * i) /
-              (data.length - 1 || 1);
-          const value = parseFloat(point.heapUsedMB);
-          const y =
-            height -
-            padding.bottom -
-            (value / maxY) * (height - padding.top - padding.bottom);
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        });
-
-        ctx.stroke();
       }
 
-      function drawDataLine(
-        ctx,
-        data,
-        key,
-        color,
-        maxY,
-        width,
-        height,
-        padding
-      ) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        data.forEach((point, i) => {
-          const x =
-            padding.left +
-            ((width - padding.left - padding.right) * i) /
-              (data.length - 1 || 1);
-          const value = point[key];
-          const y =
-            height -
-            padding.bottom -
-            (value / maxY) * (height - padding.top - padding.bottom);
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        });
-
-        ctx.stroke();
+      function updateHistory(timeSeries) {
+        if (!timeSeries) return;
+        state.history.lag = timeSeries.lag || [];
+        state.history.elu = timeSeries.elu || [];
+        state.history.memory = timeSeries.memory || [];
+        state.history.requests = timeSeries.requests || [];
       }
 
-      // ============================================================================
-      // PERFORMANCE TABLE
-      // ============================================================================
+      function drawCharts() {
+        updateLagChart();
+        updateEluChart();
+      }
+
+      function updateLagChart() {
+        if (!state.charts.lag || !state.history.lag) return;
+        if (state.history.lag.length === 0) return;
+        
+        const chart = state.charts.lag;
+        const data = state.history.lag;
+        
+        chart.data.labels = data.map(d => new Date(d.t));
+        chart.data.datasets[0].data = data.map(d => d.mean || 0);
+        chart.data.datasets[1].data = data.map(d => d.p95 || 0);
+        chart.data.datasets[2].data = data.map(d => d.p99 || 0);
+        chart.update("none");
+      }
+
+      function updateEluChart() {
+        if (!state.charts.elu || !state.history.elu) return;
+        if (state.history.elu.length === 0) return;
+        
+        const chart = state.charts.elu;
+        const data = state.history.elu;
+        
+        chart.data.labels = data.map(d => new Date(d.t));
+        chart.data.datasets[0].data = data.map(d => d.utilization || 0);
+        chart.update("none");
+      }
+
+      function updateMemoryChart() {
+        if (!state.charts.memory || !state.history.memory) return;
+        if (state.history.memory.length === 0) return;
+        
+        const chart = state.charts.memory;
+        const data = state.history.memory;
+        
+        chart.data.labels = data.map(d => new Date(d.t));
+        chart.data.datasets[0].data = data.map(d => parseFloat(d.heapUsedMB) || 0);
+        chart.update("none");
+      }
+
+      function drawLagChart() {
+        // Alias for backward compatibility
+        updateLagChart();
+      }
+
+      function drawEluChart() {
+        // Alias for backward compatibility
+        updateEluChart();
+      }
+
+      function drawMemoryChart() {
+        // Alias for backward compatibility
+        updateMemoryChart();
+      }
 
       function updatePerformanceTable(aggregated) {
         const tbody = document.getElementById("perfTableBody");
@@ -1810,19 +1485,14 @@
             )
             .join("");
         } catch (error) {
-          // Error handling
         }
       }
 
-      // ============================================================================
-      // INSIGHTS
-      // ============================================================================
-
-      function updateInsights(aggregated) {
+      function updateInsights(data) {
         const container = document.getElementById("insightsContainer");
-        if (!container || !aggregated.insights) return;
+        if (!container || !data.insights) return;
 
-        if (aggregated.insights.length === 0) {
+        if (data.insights.length === 0) {
           container.innerHTML = `
                     <div class="insight-card">
                         <div class="insight-header">
@@ -1836,7 +1506,7 @@
           return;
         }
 
-        container.innerHTML = aggregated.insights
+        container.innerHTML = data.insights
           .map((insight) => {
             const icons = { critical: "🔴", warning: "⚠️", info: "💡" };
             const colors = {
@@ -1868,10 +1538,6 @@
           })
           .join("");
       }
-
-      // ============================================================================
-      // UTILITY FUNCTIONS
-      // ============================================================================
 
       function updateLastUpdate() {
         const el = document.getElementById("lastUpdate");
