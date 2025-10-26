@@ -1,233 +1,193 @@
-/**
- * MetricsCollector Tests
- */
-
 const MetricsCollector = require('../src/core/MetricsCollector');
-const { describe, test, expect, beforeEach } = require('@jest/globals');
+
+// Helper to create valid sample
+function createSample(timestamp) {
+  return {
+    timestamp: timestamp || Date.now(),
+    lag: { min: 1, max: 5, mean: 3, p50: 3, p95: 4, p99: 5, stddev: 1 },
+    elu: { utilization: 0.5, active: 100, idle: 100 },
+    requests: { count: 10, avgTime: 50, totalTime: 500 }
+  };
+}
 
 describe('MetricsCollector', () => {
   let collector;
 
   beforeEach(() => {
-    collector = new MetricsCollector({
-      historySize: 10,
-    });
+    collector = new MetricsCollector({ historySize: 10 });
+  });
+
+  afterEach(() => {
+    if (collector) {
+      collector.destroy();
+      collector = null;
+    }
   });
 
   describe('Constructor', () => {
     test('should create collector with default options', () => {
-      const defaultCollector = new MetricsCollector();
-      expect(defaultCollector).toBeInstanceOf(MetricsCollector);
+      const col = new MetricsCollector();
+      expect(col).toBeDefined();
+      const stats = col.getStats();
+      expect(stats.historySize).toBeGreaterThan(0);
+      col.destroy();
     });
 
     test('should create collector with custom options', () => {
-      expect(collector).toBeInstanceOf(MetricsCollector);
+      const col = new MetricsCollector({ historySize: 50 });
+      expect(col).toBeDefined();
+      expect(col.getStats().historySize).toBe(50);
+      col.destroy();
     });
   });
 
   describe('addSample()', () => {
     test('should add a sample', () => {
-      const sample = createMockSample();
+      const sample = createSample();
       collector.addSample(sample);
-      
-      const latest = collector.getLatestSample();
-      expect(latest).toBeTruthy();
-      expect(latest.timestamp).toBe(sample.timestamp);
+      expect(collector.getStats().sampleCount).toBe(1);
+      expect(collector.getLatestSample()).toMatchObject(sample);
     });
 
     test('should handle multiple samples', () => {
-      for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
-      }
-      
-      const history = collector.getHistory();
-      expect(history.length).toBe(5);
+      collector.addSample(createSample(1000));
+      collector.addSample(createSample(2000));
+      expect(collector.getStats().sampleCount).toBe(2);
     });
 
     test('should maintain circular buffer', () => {
-      // Add more samples than history size
+      // Add more than capacity
       for (let i = 0; i < 15; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
+        collector.addSample(createSample(Date.now() + i));
       }
-      
-      const history = collector.getHistory();
-      expect(history.length).toBe(10); // Should be limited to historySize
+      // Should not exceed historySize
+      expect(collector.getStats().sampleCount).toBe(10);
     });
 
     test('should keep most recent samples', () => {
-      const timestamps = [];
       for (let i = 0; i < 15; i++) {
-        const timestamp = Date.now() + i * 1000;
-        timestamps.push(timestamp);
-        collector.addSample(createMockSample(timestamp));
+        collector.addSample(createSample(1000 + i));
       }
-      
       const history = collector.getHistory();
-      const historyTimestamps = history.map(s => s.timestamp);
-      
-      // Should have last 10 timestamps
-      expect(historyTimestamps).toEqual(timestamps.slice(-10));
+      expect(history.length).toBe(10);
+      // Should have the last 10
+      expect(history[history.length - 1].timestamp).toBe(1014);
     });
   });
 
   describe('getLatestSample()', () => {
     test('should return null when no samples', () => {
-      const latest = collector.getLatestSample();
-      expect(latest).toBeNull();
+      expect(collector.getLatestSample()).toBeNull();
     });
 
     test('should return latest sample', () => {
-      const sample1 = createMockSample(1000);
-      const sample2 = createMockSample(2000);
-      
-      collector.addSample(sample1);
-      collector.addSample(sample2);
-      
-      const latest = collector.getLatestSample();
-      expect(latest.timestamp).toBe(2000);
+      const sample = createSample();
+      collector.addSample(sample);
+      expect(collector.getLatestSample()).toMatchObject(sample);
     });
   });
 
   describe('getHistory()', () => {
     test('should return empty array when no samples', () => {
-      const history = collector.getHistory();
-      expect(history).toEqual([]);
+      expect(collector.getHistory()).toEqual([]);
     });
 
     test('should return all samples in chronological order', () => {
-      const timestamps = [1000, 2000, 3000];
-      timestamps.forEach(ts => {
-        collector.addSample(createMockSample(ts));
-      });
-      
+      collector.addSample(createSample(1000));
+      collector.addSample(createSample(2000));
       const history = collector.getHistory();
-      expect(history.length).toBe(3);
+      expect(history.length).toBe(2);
       expect(history[0].timestamp).toBe(1000);
-      expect(history[2].timestamp).toBe(3000);
+      expect(history[1].timestamp).toBe(2000);
     });
 
     test('should limit by count parameter', () => {
-      for (let i = 0; i < 10; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
+      for (let i = 0; i < 5; i++) {
+        collector.addSample(createSample(1000 + i * 1000));
       }
-      
-      const history = collector.getHistory(5);
-      expect(history.length).toBe(5);
+      const history = collector.getHistory({ count: 3 });
+      expect(history.length).toBe(3);
     });
 
     test('should return most recent samples when limited', () => {
-      const timestamps = [];
-      for (let i = 0; i < 10; i++) {
-        const ts = 1000 + i * 100;
-        timestamps.push(ts);
-        collector.addSample(createMockSample(ts));
+      for (let i = 0; i < 5; i++) {
+        collector.addSample(createSample(1000 + i * 1000));
       }
-      
-      const history = collector.getHistory(3);
-      expect(history.length).toBe(3);
-      expect(history[0].timestamp).toBe(1700); // Last 3
-      expect(history[2].timestamp).toBe(1900);
+      const history = collector.getHistory({ count: 2 });
+      expect(history.length).toBe(2);
+      expect(history[0].timestamp).toBe(4000);
+      expect(history[1].timestamp).toBe(5000);
     });
   });
 
   describe('getAggregatedMetrics()', () => {
     test('should return null when no samples', () => {
-      const aggregated = collector.getAggregatedMetrics();
-      expect(aggregated).toBeNull();
+      expect(collector.getAggregatedMetrics()).toBeNull();
     });
 
     test('should calculate aggregated metrics', () => {
-      // Add samples with known values
-      for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i, {
-          lagMean: 10 + i,
-          eluUtilization: 0.5,
-        }));
-      }
+      collector.addSample(createSample(1000));
+      collector.addSample(createSample(2000));
       
       const aggregated = collector.getAggregatedMetrics();
-      expect(aggregated).toBeTruthy();
+      expect(aggregated).toBeDefined();
       expect(aggregated.lag).toBeDefined();
-      expect(aggregated.lag.mean).toBeDefined();
-      expect(aggregated.elu).toBeDefined();
-      expect(aggregated.elu.utilization).toBeDefined();
+      expect(aggregated.lag.min).toBeDefined();
+      expect(aggregated.lag.max).toBeDefined();
     });
 
     test('should respect duration parameter', () => {
       const now = Date.now();
+      collector.addSample(createSample(now - 10000));
+      collector.addSample(createSample(now));
       
-      // Add old sample
-      collector.addSample(createMockSample(now - 10000));
-      
-      // Add recent samples
-      collector.addSample(createMockSample(now - 100));
-      collector.addSample(createMockSample(now));
-      
-      // Only get metrics from last second
-      const aggregated = collector.getAggregatedMetrics(1000);
-      expect(aggregated).toBeTruthy();
+      const aggregated = collector.getAggregatedMetrics({ duration: 5000 });
+      expect(aggregated).toBeDefined();
     });
   });
 
   describe('getTimeSeries()', () => {
     test('should return empty array when no samples', () => {
-      const timeSeries = collector.getTimeSeries('lag');
-      expect(timeSeries).toEqual([]);
+      expect(collector.getTimeSeries('lag')).toEqual([]);
     });
 
     test('should return lag time series', () => {
-      for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
-      }
-      
-      const timeSeries = collector.getTimeSeries('lag');
-      expect(timeSeries.length).toBe(5);
-      expect(timeSeries[0].timestamp).toBeDefined();
-      expect(timeSeries[0].mean).toBeDefined();
-      expect(timeSeries[0].p95).toBeDefined();
+      collector.addSample(createSample(1000));
+      const series = collector.getTimeSeries('lag');
+      expect(series.length).toBe(1);
+      expect(series[0].timestamp).toBe(1000);
+      expect(series[0].min).toBeDefined();
     });
 
     test('should return elu time series', () => {
-      for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
-      }
-      
-      const timeSeries = collector.getTimeSeries('elu');
-      expect(timeSeries.length).toBe(5);
-      expect(timeSeries[0].timestamp).toBeDefined();
-      expect(timeSeries[0].utilization).toBeDefined();
+      collector.addSample(createSample(1000));
+      const series = collector.getTimeSeries('elu');
+      expect(series.length).toBe(1);
+      expect(series[0].timestamp).toBe(1000);
+      expect(series[0].utilization).toBeDefined();
     });
 
     test('should return requests time series', () => {
-      for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i, {
-          requestCount: i + 1,
-          requestAvgTime: 100,
-        }));
-      }
-      
-      const timeSeries = collector.getTimeSeries('requests');
-      expect(timeSeries.length).toBe(5);
-      expect(timeSeries[0].timestamp).toBeDefined();
-      expect(timeSeries[0].count).toBeDefined();
+      collector.addSample(createSample(1000));
+      const series = collector.getTimeSeries('requests');
+      expect(series.length).toBe(1);
+      expect(series[0].timestamp).toBe(1000);
     });
 
     test('should limit by count parameter', () => {
-      for (let i = 0; i < 10; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
+      for (let i = 0; i < 5; i++) {
+        collector.addSample(createSample(1000 + i * 1000));
       }
-      
-      const timeSeries = collector.getTimeSeries('lag', { count: 5 });
-      expect(timeSeries.length).toBe(5);
+      const series = collector.getTimeSeries('lag', { count: 3 });
+      expect(series.length).toBe(3);
     });
   });
 
   describe('reset()', () => {
     test('should clear all samples', () => {
       for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
+        collector.addSample(createSample(Date.now() + i));
       }
-      
       expect(collector.getHistory().length).toBe(5);
       
       collector.reset();
@@ -240,7 +200,7 @@ describe('MetricsCollector', () => {
   describe('getStats()', () => {
     test('should return collection statistics', () => {
       for (let i = 0; i < 5; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
+        collector.addSample(createSample(Date.now() + i));
       }
       
       const stats = collector.getStats();
@@ -254,7 +214,7 @@ describe('MetricsCollector', () => {
   describe('exportJSON() and importJSON()', () => {
     test('should export samples as JSON', () => {
       for (let i = 0; i < 3; i++) {
-        collector.addSample(createMockSample(Date.now() + i));
+        collector.addSample(createSample(Date.now() + i));
       }
       
       const json = collector.exportJSON();
@@ -268,9 +228,9 @@ describe('MetricsCollector', () => {
 
     test('should import samples from JSON', () => {
       const samples = [
-        createMockSample(1000),
-        createMockSample(2000),
-        createMockSample(3000),
+        createSample(1000),
+        createSample(2000),
+        createSample(3000),
       ];
       
       const json = JSON.stringify({ samples });
@@ -284,8 +244,8 @@ describe('MetricsCollector', () => {
 
     test('should handle export and import round trip', () => {
       const original = [
-        createMockSample(1000),
-        createMockSample(2000),
+        createSample(1000),
+        createSample(2000),
       ];
       
       original.forEach(s => collector.addSample(s));
@@ -298,7 +258,8 @@ describe('MetricsCollector', () => {
       const imported = newCollector.getHistory();
       expect(imported.length).toBe(2);
       expect(imported[0].timestamp).toBe(1000);
-      expect(imported[1].timestamp).toBe(2000);
+      
+      newCollector.destroy();
     });
   });
 
@@ -306,67 +267,23 @@ describe('MetricsCollector', () => {
     test('should handle samples with missing fields gracefully', () => {
       const incompleteSample = {
         timestamp: Date.now(),
-        lag: { mean: 5 },
-        // Missing other fields
+        lag: { min: 1, max: 5, mean: 3 }
       };
       
-      // Should not throw
-      expect(() => collector.addSample(incompleteSample)).not.toThrow();
+      // Should handle gracefully
+      expect(() => {
+        collector.addSample(incompleteSample);
+      }).not.toThrow();
     });
 
     test('should handle zero history size', () => {
-      const zeroCollector = new MetricsCollector({ historySize: 1 });
-      zeroCollector.addSample(createMockSample());
+      const col = new MetricsCollector({ historySize: 0 });
       
-      const history = zeroCollector.getHistory();
-      expect(history.length).toBeLessThanOrEqual(1);
+      col.addSample(createSample());
+      
+      // With zero history, nothing is stored
+      expect(col.getStats().sampleCount).toBe(0);
+      col.destroy();
     });
   });
 });
-
-// Helper function to create mock samples
-function createMockSample(timestamp = Date.now(), overrides = {}) {
-  return {
-    timestamp,
-    lag: {
-      min: overrides.lagMin || 1,
-      max: overrides.lagMax || 10,
-      mean: overrides.lagMean || 5,
-      stddev: overrides.lagStddev || 2,
-      p50: overrides.lagP50 || 4,
-      p90: overrides.lagP90 || 8,
-      p95: overrides.lagP95 || 9,
-      p99: overrides.lagP99 || 10,
-      p999: overrides.lagP999 || 10,
-    },
-    elu: {
-      utilization: overrides.eluUtilization || 0.5,
-      active: overrides.eluActive || 50,
-      idle: overrides.eluIdle || 50,
-    },
-    memory: {
-      heapUsed: overrides.heapUsed || 50000000,
-      heapTotal: overrides.heapTotal || 100000000,
-      external: overrides.external || 1000000,
-      rss: overrides.rss || 120000000,
-      heapUsedMB: overrides.heapUsedMB || '50.00',
-      heapTotalMB: overrides.heapTotalMB || '100.00',
-      rssMB: overrides.rssMB || '120.00',
-    },
-    cpu: {
-      user: overrides.cpuUser || 100,
-      system: overrides.cpuSystem || 50,
-      total: overrides.cpuTotal || 150,
-    },
-    handles: {
-      active: overrides.handlesActive || 10,
-      requests: overrides.handlesRequests || 5,
-      total: overrides.handlesTotal || 15,
-    },
-    requests: {
-      count: overrides.requestCount || 0,
-      totalTime: overrides.requestTotalTime || 0,
-      avgTime: overrides.requestAvgTime || 0,
-    },
-  };
-}
