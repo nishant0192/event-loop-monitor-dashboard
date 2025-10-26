@@ -178,7 +178,7 @@ class MetricsCollector extends EventEmitter {
     let requestedCount = count || this.sampleCount;
 
     if (duration) {
-      const cutoffTime = Date.now() - duration;
+      const _cutoffTime = Date.now() - duration;
       requestedCount = this.sampleCount;
     }
 
@@ -217,7 +217,7 @@ class MetricsCollector extends EventEmitter {
   }
 
   getAggregatedMetrics(durationOrWindow) {
-    const startTime = Date.now();
+    const _startTime = Date.now();
 
     let duration;
     if (typeof durationOrWindow === "string") {
@@ -455,7 +455,7 @@ class MetricsCollector extends EventEmitter {
   }
 
   importJSON(json, options = {}) {
-    const { append = false, validate = true } = options;
+    const { append = false, _validate = true } = options;
 
     try {
       const data = JSON.parse(json);

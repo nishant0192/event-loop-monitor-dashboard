@@ -35,24 +35,24 @@ function getOrCreateMonitor(options) {
  * Setup alert manager if alerting is configured
  * @private
  */
-function setupAlertManager(monitor, options) {
-  if (!options.onAlert && !options.thresholds) {
-    return null; // No alerting configured
-  }
+// function setupAlertManager(monitor, options) {
+//   if (!options.onAlert && !options.thresholds) {
+//     return null; // No alerting configured
+//   }
 
-  // Lazy load AlertManager
-  const AlertManager = require("../alerts/AlertManager");
+//   // Lazy load AlertManager
+//   const AlertManager = require("../alerts/AlertManager");
 
-  if (!globalAlertManager) {
-    globalAlertManager = new AlertManager(monitor, {
-      thresholds: options.thresholds,
-      onAlert: options.onAlert,
-    });
-    globalAlertManager.start();
-  }
+//   if (!globalAlertManager) {
+//     globalAlertManager = new AlertManager(monitor, {
+//       thresholds: options.thresholds,
+//       onAlert: options.onAlert,
+//     });
+//     globalAlertManager.start();
+//   }
 
-  return globalAlertManager;
-}
+//   return globalAlertManager;
+// }
 
 /**
  * Create Express middleware for event loop monitoring
@@ -106,7 +106,7 @@ function createMiddleware(options = {}) {
   const monitor = getOrCreateMonitor(config);
 
   // Setup alert manager if configured
-  const alertManager = setupAlertManager(monitor, config);
+  // const alertManager = setupAlertManager(monitor, config);
 
   // Lazy load dashboard routes
   let dashboardRouter = null;

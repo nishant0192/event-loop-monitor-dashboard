@@ -53,7 +53,7 @@ function getAlertManager() {
  * Get Dashboard Routes (lazy-loaded)
  * @private
  */
-function getDashboardRoutes() {
+function _getDashboardRoutes() {
   if (!_dashboardRoutes) {
     _dashboardRoutes = require('./dashboard/routes');
   }

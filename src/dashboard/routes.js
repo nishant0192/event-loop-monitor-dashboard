@@ -18,7 +18,7 @@ const api = require('./api');
  */
 function createDashboardRoutes(monitor) {
   // Mini router implementation (no external dependencies)
-  const router = function(req, res, next) {
+  const router = function(req, res, _next) {
     // Parse query parameters
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
