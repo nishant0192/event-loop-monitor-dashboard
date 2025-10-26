@@ -272,7 +272,7 @@ describe('Integration Tests', () => {
       const data = response.body.data;
 
       expect(data.current).toBeDefined();
-      expect(data.lag.max).toBeGreaterThan(0);
+      expect(data.current.lag.max).toBeGreaterThan(0);
     });
   });
 
