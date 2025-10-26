@@ -4,7 +4,7 @@
 
 const express = require('express');
 const request = require('supertest');
-const { prometheusExporter } = require('../src/exporters/prometheus');
+const prometheusExporter = require('../src/exporters/prometheus');
 const EventLoopMonitor = require('../src/core/EventLoopMonitor');
 const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
 const { sleep } = require('./setup.js');

@@ -1,15 +1,15 @@
 /**
  * Alert Manager
- * 
+ *
  * Monitors event loop health and triggers alerts when thresholds are breached
  * Tracks alert state to prevent alert fatigue
- * 
+ *
  * @module alerts/AlertManager
  */
 
 /**
  * AlertManager - Manages threshold-based alerting for event loop metrics
- * 
+ *
  * @class
  */
 class AlertManager {
@@ -27,18 +27,18 @@ class AlertManager {
    */
   constructor(monitor, options = {}) {
     if (!monitor) {
-      throw new Error('AlertManager requires a monitor instance');
+      throw new Error("AlertManager requires a monitor instance");
     }
 
     this.monitor = monitor;
 
     // Default thresholds
     this.thresholds = {
-      lagWarning: 50,      // 50ms lag is concerning
-      lagCritical: 100,    // 100ms lag is critical
-      eluWarning: 0.7,     // 70% utilization is concerning
-      eluCritical: 0.9,    // 90% utilization is critical
-      ...options.thresholds
+      lagWarning: 50, // 50ms lag is concerning
+      lagCritical: 100, // 100ms lag is critical
+      eluWarning: 0.7, // 70% utilization is concerning
+      eluCritical: 0.9, // 90% utilization is critical
+      ...options.thresholds,
     };
 
     // Alert callback
@@ -53,15 +53,15 @@ class AlertManager {
     // Alert state tracking
     this.alertState = {
       lag: {
-        level: null,           // null, 'warning', 'critical'
-        lastTriggered: null,   // timestamp
-        count: 0               // number of times triggered
+        level: null, // null, 'warning', 'critical'
+        lastTriggered: null, // timestamp
+        count: 0, // number of times triggered
       },
       elu: {
         level: null,
         lastTriggered: null,
-        count: 0
-      }
+        count: 0,
+      },
     };
 
     // Alert history (for analysis)
@@ -82,7 +82,8 @@ class AlertManager {
     }
 
     if (!this.monitor.isActive()) {
-      throw new Error('Cannot start AlertManager: monitor is not active');
+      console.warn("AlertManager: Cannot start - monitor is not active");
+      return;
     }
 
     this.isActive = true;
@@ -156,28 +157,32 @@ class AlertManager {
 
     // Determine alert level
     if (lagMean >= this.thresholds.lagCritical) {
-      newLevel = 'critical';
+      newLevel = "critical";
     } else if (lagMean >= this.thresholds.lagWarning) {
-      newLevel = 'warning';
+      newLevel = "warning";
     }
 
     // Check if alert state changed or cooldown expired
     const currentLevel = this.alertState.lag.level;
     const lastTriggered = this.alertState.lag.lastTriggered;
-    const cooldownExpired = !lastTriggered || (now - lastTriggered) >= this.cooldown;
+    const cooldownExpired =
+      !lastTriggered || now - lastTriggered >= this.cooldown;
 
     if (newLevel && (newLevel !== currentLevel || cooldownExpired)) {
       // Trigger alert
-      this._triggerAlert('lag', newLevel, {
+      this._triggerAlert("lag", newLevel, {
         value: lagMean,
-        threshold: newLevel === 'critical' ? this.thresholds.lagCritical : this.thresholds.lagWarning,
-        unit: 'ms',
+        threshold:
+          newLevel === "critical"
+            ? this.thresholds.lagCritical
+            : this.thresholds.lagWarning,
+        unit: "ms",
         details: {
           p50: lag.p50,
           p95: lag.p95,
           p99: lag.p99,
-          max: lag.max
-        }
+          max: lag.max,
+        },
       });
 
       // Update state
@@ -186,7 +191,7 @@ class AlertManager {
       this.alertState.lag.count++;
     } else if (!newLevel && currentLevel) {
       // Alert resolved
-      this._resolveAlert('lag', currentLevel, lagMean);
+      this._resolveAlert("lag", currentLevel, lagMean);
       this.alertState.lag.level = null;
     }
   }
@@ -201,26 +206,30 @@ class AlertManager {
 
     // Determine alert level
     if (eluValue >= this.thresholds.eluCritical) {
-      newLevel = 'critical';
+      newLevel = "critical";
     } else if (eluValue >= this.thresholds.eluWarning) {
-      newLevel = 'warning';
+      newLevel = "warning";
     }
 
     // Check if alert state changed or cooldown expired
     const currentLevel = this.alertState.elu.level;
     const lastTriggered = this.alertState.elu.lastTriggered;
-    const cooldownExpired = !lastTriggered || (now - lastTriggered) >= this.cooldown;
+    const cooldownExpired =
+      !lastTriggered || now - lastTriggered >= this.cooldown;
 
     if (newLevel && (newLevel !== currentLevel || cooldownExpired)) {
       // Trigger alert
-      this._triggerAlert('elu', newLevel, {
+      this._triggerAlert("elu", newLevel, {
         value: eluValue * 100, // Convert to percentage
-        threshold: (newLevel === 'critical' ? this.thresholds.eluCritical : this.thresholds.eluWarning) * 100,
-        unit: '%',
+        threshold:
+          (newLevel === "critical"
+            ? this.thresholds.eluCritical
+            : this.thresholds.eluWarning) * 100,
+        unit: "%",
         details: {
           active: elu.active,
-          idle: elu.idle
-        }
+          idle: elu.idle,
+        },
       });
 
       // Update state
@@ -229,7 +238,7 @@ class AlertManager {
       this.alertState.elu.count++;
     } else if (!newLevel && currentLevel) {
       // Alert resolved
-      this._resolveAlert('elu', currentLevel, eluValue * 100);
+      this._resolveAlert("elu", currentLevel, eluValue * 100);
       this.alertState.elu.level = null;
     }
   }
@@ -248,18 +257,18 @@ class AlertManager {
       unit: data.unit,
       details: data.details,
       message: this._buildAlertMessage(metric, level, data),
-      status: 'firing'
+      status: "firing",
     };
 
     // Add to history
     this._addToHistory(alert);
 
     // Call user callback
-    if (this.onAlert && typeof this.onAlert === 'function') {
+    if (this.onAlert && typeof this.onAlert === "function") {
       try {
         this.onAlert(alert);
       } catch (error) {
-        console.error('AlertManager: Error in onAlert callback:', error);
+        console.error("AlertManager: Error in onAlert callback:", error);
       }
     }
   }
@@ -275,18 +284,18 @@ class AlertManager {
       level: level,
       value: currentValue,
       message: this._buildResolvedMessage(metric, level, currentValue),
-      status: 'resolved'
+      status: "resolved",
     };
 
     // Add to history
     this._addToHistory(alert);
 
     // Call user callback
-    if (this.onAlert && typeof this.onAlert === 'function') {
+    if (this.onAlert && typeof this.onAlert === "function") {
       try {
         this.onAlert(alert);
       } catch (error) {
-        console.error('AlertManager: Error in onAlert callback:', error);
+        console.error("AlertManager: Error in onAlert callback:", error);
       }
     }
   }
@@ -296,10 +305,13 @@ class AlertManager {
    * @private
    */
   _buildAlertMessage(metric, level, data) {
-    const metricName = metric === 'lag' ? 'Event Loop Lag' : 'Event Loop Utilization';
-    const emoji = level === 'critical' ? '🔴' : '⚠️';
-    
-    return `${emoji} ${level.toUpperCase()}: ${metricName} is ${data.value.toFixed(2)}${data.unit} (threshold: ${data.threshold}${data.unit})`;
+    const metricName =
+      metric === "lag" ? "Event Loop Lag" : "Event Loop Utilization";
+    const emoji = level === "critical" ? "🔴" : "⚠️";
+
+    return `${emoji} ${level.toUpperCase()}: ${metricName} is ${data.value.toFixed(
+      2
+    )}${data.unit} (threshold: ${data.threshold}${data.unit})`;
   }
 
   /**
@@ -307,10 +319,13 @@ class AlertManager {
    * @private
    */
   _buildResolvedMessage(metric, level, currentValue) {
-    const metricName = metric === 'lag' ? 'Event Loop Lag' : 'Event Loop Utilization';
-    const unit = metric === 'lag' ? 'ms' : '%';
-    
-    return `✅ RESOLVED: ${metricName} ${level} alert (current: ${currentValue.toFixed(2)}${unit})`;
+    const metricName =
+      metric === "lag" ? "Event Loop Lag" : "Event Loop Utilization";
+    const unit = metric === "lag" ? "ms" : "%";
+
+    return `✅ RESOLVED: ${metricName} ${level} alert (current: ${currentValue.toFixed(
+      2
+    )}${unit})`;
   }
 
   /**
@@ -344,13 +359,13 @@ class AlertManager {
       active: this.isActive,
       currentAlerts: {
         lag: this.alertState.lag.level,
-        elu: this.alertState.elu.level
+        elu: this.alertState.elu.level,
       },
       alertCounts: {
         lag: this.alertState.lag.count,
-        elu: this.alertState.elu.count
+        elu: this.alertState.elu.count,
       },
-      thresholds: this.thresholds
+      thresholds: this.thresholds,
     };
   }
 
@@ -371,14 +386,16 @@ class AlertManager {
    * @returns {Object} Alert statistics
    */
   getAlertStats() {
-    const firingAlerts = this.alertHistory.filter(a => a.status === 'firing');
-    const resolvedAlerts = this.alertHistory.filter(a => a.status === 'resolved');
+    const firingAlerts = this.alertHistory.filter((a) => a.status === "firing");
+    const resolvedAlerts = this.alertHistory.filter(
+      (a) => a.status === "resolved"
+    );
 
-    const lagAlerts = firingAlerts.filter(a => a.metric === 'lag');
-    const eluAlerts = firingAlerts.filter(a => a.metric === 'elu');
+    const lagAlerts = firingAlerts.filter((a) => a.metric === "lag");
+    const eluAlerts = firingAlerts.filter((a) => a.metric === "elu");
 
-    const criticalAlerts = firingAlerts.filter(a => a.level === 'critical');
-    const warningAlerts = firingAlerts.filter(a => a.level === 'warning');
+    const criticalAlerts = firingAlerts.filter((a) => a.level === "critical");
+    const warningAlerts = firingAlerts.filter((a) => a.level === "warning");
 
     return {
       total: this.alertHistory.length,
@@ -386,13 +403,13 @@ class AlertManager {
       resolved: resolvedAlerts.length,
       byMetric: {
         lag: lagAlerts.length,
-        elu: eluAlerts.length
+        elu: eluAlerts.length,
       },
       byLevel: {
         critical: criticalAlerts.length,
-        warning: warningAlerts.length
+        warning: warningAlerts.length,
       },
-      current: this.getAlertStatus().currentAlerts
+      current: this.getAlertStatus().currentAlerts,
     };
   }
 
@@ -410,7 +427,7 @@ class AlertManager {
   updateThresholds(newThresholds) {
     this.thresholds = {
       ...this.thresholds,
-      ...newThresholds
+      ...newThresholds,
     };
   }
 
@@ -424,7 +441,7 @@ class AlertManager {
       checkInterval: this.checkInterval,
       cooldown: this.cooldown,
       isActive: this.isActive,
-      hasCallback: typeof this.onAlert === 'function'
+      hasCallback: typeof this.onAlert === "function",
     };
   }
 }

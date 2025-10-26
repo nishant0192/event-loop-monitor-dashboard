@@ -217,7 +217,7 @@ describe('MetricsCollector', () => {
         collector.addSample(createMockSample(Date.now() + i));
       }
       
-      const timeSeries = collector.getTimeSeries('lag', 5);
+      const timeSeries = collector.getTimeSeries('lag', { count: 5 });
       expect(timeSeries.length).toBe(5);
     });
   });

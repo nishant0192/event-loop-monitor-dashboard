@@ -224,3 +224,4 @@ module.exports = createMiddleware;
 module.exports.getGlobalMonitor = getGlobalMonitor;
 module.exports.getGlobalAlertManager = getGlobalAlertManager;
 module.exports.cleanup = cleanup;
+module.exports.eventLoopMonitor = createMiddleware;
