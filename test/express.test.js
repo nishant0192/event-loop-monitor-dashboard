@@ -5,7 +5,7 @@
 const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
 const express = require('express');
 const request = require('supertest');
-const { eventLoopMonitor, getGlobalMonitor, cleanup } = require('../../src/middleware/express');
+const { eventLoopMonitor, getGlobalMonitor, cleanup } = require('../src/middleware/express');
 const { sleep } = require('./setup.js');
 
 describe('Express Middleware', () => {

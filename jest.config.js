@@ -33,8 +33,13 @@ module.exports = {
   // Module paths
   moduleDirectories: ['node_modules', 'src'],
 
-  // Transform
+  // FIXED: Don't transform - use CommonJS
   transform: {},
+  
+  // FIXED: Explicitly disable ES modules
+  testEnvironmentOptions: {
+    NODE_OPTIONS: '--experimental-vm-modules',
+  },
 
   // Timeout for tests
   testTimeout: 10000,

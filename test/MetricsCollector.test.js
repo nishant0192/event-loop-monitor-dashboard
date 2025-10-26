@@ -2,7 +2,7 @@
  * MetricsCollector Tests
  */
 
-const MetricsCollector = require('../../src/core/MetricsCollector');
+const MetricsCollector = require('../src/core/MetricsCollector');
 const { describe, test, expect, beforeEach } = require('@jest/globals');
 
 describe('MetricsCollector', () => {

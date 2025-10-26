@@ -1062,7 +1062,12 @@ class MetricsCollector extends EventEmitter {
       }
     }, this.config.cleanupInterval);
 
-    // Ensure cleanup on process exit
+    // FIXED: Prevent memory leak - unref timer so it doesn't prevent exit
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
+
+    // FIXED: Use once() instead of on() to prevent duplicate listeners
     if (typeof process !== "undefined") {
       process.once("beforeExit", () => this._stopAutoCleanup());
     }

@@ -2,8 +2,8 @@
  * AlertManager Tests
  */
 const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
-const EventLoopMonitor = require('../../src/core/EventLoopMonitor');
-const AlertManager = require('../../src/alerts/AlertManager');
+const EventLoopMonitor = require('../src/core/EventLoopMonitor');
+const AlertManager = require('../src/alerts/AlertManager');
 const { sleep } = require('./setup.js');
 
 describe('AlertManager', () => {

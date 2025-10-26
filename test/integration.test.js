@@ -12,7 +12,7 @@ const {
   createMonitor,
   createAlertManager,
   EventLoopMonitor 
-} = require('../../src/index');
+} = require('../src/index');
 const { describe, test, expect, afterEach } = require('@jest/globals');
 const { sleep } = require('./setup.js');
 

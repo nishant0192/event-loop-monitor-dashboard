@@ -4,8 +4,8 @@
 
 const express = require('express');
 const request = require('supertest');
-const { prometheusExporter } = require('../../src/exporters/prometheus');
-const EventLoopMonitor = require('../../src/core/EventLoopMonitor');
+const { prometheusExporter } = require('../src/exporters/prometheus');
+const EventLoopMonitor = require('../src/core/EventLoopMonitor');
 const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
 const { sleep } = require('./setup.js');
 
@@ -200,7 +200,7 @@ describe('Prometheus Exporter', () => {
   describe('Without Monitor Instance', () => {
     test('should work without explicit monitor', async () => {
       // This tests using global monitor from middleware
-      const { eventLoopMonitor } = require('../../src/middleware/express');
+      const { eventLoopMonitor } = require('../src/middleware/express');
       
       app.use(eventLoopMonitor());
       app.get('/metrics', prometheusExporter());

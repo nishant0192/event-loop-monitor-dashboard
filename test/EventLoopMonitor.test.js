@@ -2,9 +2,10 @@
  * EventLoopMonitor Tests
  */
 
+// FIXED: Use CommonJS instead of ES modules
 const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
-import { sleep } from './setup.js';
-const EventLoopMonitor = require('../../src/core/EventLoopMonitor');
+const EventLoopMonitor = require('../src/core/EventLoopMonitor');
+const { sleep } = require('./setup');
 
 describe('EventLoopMonitor', () => {
   let monitor;
